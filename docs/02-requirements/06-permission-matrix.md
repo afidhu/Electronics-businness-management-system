@@ -35,8 +35,10 @@ Branch-scoped roles must have at least one active branch. `SYSTEM_ADMIN` must ha
 | `branches:write` | Create/update/deactivate branches | ✓ | | | | | | |
 | `branches:access_all` | Access every branch without assignment | ✓ | | | | | | |
 | `audit:read` | View audit history (within scope) | ✓ | ✓ | | | | | ✓ |
-| `catalogue:read` | View products, categories, brands *(future)* | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
-| `catalogue:write` | Maintain the catalogue *(future)* | ✓ | | ✓ | | | | |
+| `catalogue:read` | View products, categories, brands | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| `catalogue:write` | Create categories/brands/products (incl. **initial** prices); update non-price fields | ✓ | | ✓ | | | | |
+| `catalogue:price` | Change cost/selling price of an existing product (Module 3, D5) | ✓ | ✓ | | | | | |
+| `catalogue:cost_read` | See product cost prices in API responses (Module 3, D4) | ✓ | ✓ | ✓ | ✓ | | | ✓ |
 | `inventory:read` | View stock, units, movements *(future)* | ✓ | ✓ | ✓ | ✓ | ✓ | | ✓ |
 | `inventory:write` | Maintain serialized unit records *(future)* | ✓ | | ✓ | | | | |
 | `inventory:receive` | Receive goods against POs *(future)* | ✓ | | ✓ | ✓ | | | |
@@ -59,16 +61,21 @@ Branch-scoped roles must have at least one active branch. `SYSTEM_ADMIN` must ha
 | `reports:inventory` | Inventory reports *(future)* | ✓ | ✓ | | | | | ✓ |
 
 ## 6.4 Approved business decisions (16 Nov 2026)
-1. **Purchase approval and separation of duties:** MANAGER and SYSTEM_ADMIN hold `procurement:approve`. PROCUREMENT_OFFICER creates purchase orders and never approves them. **The creator of a purchase order can never approve (or reject) it, whatever their role**, including SYSTEM_ADMIN and MANAGER (decided 16 Nov 2026, ADR-023). Approval and rejection are audited. *To be implemented in Module 3.*
+1. **Purchase approval and separation of duties:** MANAGER and SYSTEM_ADMIN hold `procurement:approve`. PROCUREMENT_OFFICER creates purchase orders and never approves them. **The creator of a purchase order can never approve (or reject) it, whatever their role**, including SYSTEM_ADMIN and MANAGER (decided 16 Nov 2026, ADR-023). Approval and rejection are audited. *To be implemented in Module 4 (Procurement).*
 2. **Discounts and returns:** only MANAGER and SYSTEM_ADMIN hold `sales:discount` and `sales:return`. Detailed discount limits and return rules belong to the sales and returns modules.
 3. **Staff list:** SYSTEM_ADMIN manages all users (`users:write`). MANAGER has `users:read` and sees only staff assigned to at least one of their branches. Managers cannot create, update, deactivate or reset passwords.
 4. **Audit visibility:** SYSTEM_ADMIN sees all audit events. MANAGER and AUDITOR see only events tied to their authorised branches. Global events with no branch (logins, logouts, token reuse, password changes) are visible only to SYSTEM_ADMIN.
 5. **Session lifetime:** maximum absolute session of **30 days** from login. Refresh-token rotation never extends it (ADR-021).
 
+## 6.4a Module 3 catalogue decisions (approved 16 Nov 2026)
+- **D4 (cost visibility):** CASHIER and TECHNICIAN never receive `costPrice`. The API omits the field unless the caller holds `catalogue:cost_read`. That permission exists only because checks use permission keys, never role names (ADR-016). It is granted to exactly the roles that may see cost and gives no other access.
+- **D5 (price changes):** `catalogue:price` (MANAGER, SYSTEM_ADMIN) is required to change `costPrice`/`sellingPrice` of an existing product. INVENTORY_OFFICER sets initial prices when creating a product (`catalogue:write`) but cannot change them later. A PATCH containing both ordinary and price fields needs both permissions; otherwise the whole request is rejected (403) and nothing changes. Every price change is audited with old and new values per field, the user and the timestamp.
+- **D13 (audit visibility):** catalogue events (Category, Brand, Product) are organisation-wide and visible to all `audit:read` holders (SYSTEM_ADMIN, MANAGER, AUDITOR). Global login and identity events stay SYSTEM_ADMIN-only.
+
 ## 6.5 Enforcement summary
 | Layer | Mechanism |
 |---|---|
 | Authentication | Global `JwtAuthGuard`: a Bearer access token is required unless the route is `@Public()`. The user is re-loaded from the database on every request. |
-| Permission | Global `PermissionsGuard`: `@RequirePermissions(...)` requires all listed keys; undeclared routes are denied. |
+| Permission | Global `PermissionsGuard`: `@RequirePermissions(...)` requires all listed keys; `@RequireAnyPermission(...)` requires at least one (then the service checks field-level rules, e.g. product PATCH); undeclared routes are denied. |
 | Branch (request) | Global `BranchScopeGuard`: `@BranchScoped('params' \| 'query' \| 'body', field)` checks every branch ID the client sends. |
 | Branch (data) | `BranchAccessService.assertCanAccess()` and `scopeFilter()` inside services. Lists show only in-scope rows; a single out-of-scope branch returns 403 `BRANCH_ACCESS_DENIED`. |

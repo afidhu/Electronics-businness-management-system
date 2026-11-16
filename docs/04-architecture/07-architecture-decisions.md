@@ -193,11 +193,11 @@ The project owner approved the roles, branch access and authentication strategy 
 **Decision:**
 - MANAGER gains `users:read`, scoped to staff sharing at least one of the manager's branches, and gets no write access. This is the only permission-matrix change.
 - Confirmed unchanged: `procurement:approve`, `sales:discount` and `sales:return` are held only by MANAGER and SYSTEM_ADMIN, and audit visibility is branch-scoped with global login events admin-only.
-- Procurement officers must never approve purchase orders. Module 3 enforces this in the workflow; whether an admin may approve their own PO is to be confirmed.
+- Procurement officers must never approve purchase orders. Module 4 (Procurement) enforces this in the workflow; the creator can never approve their own PO (ADR-023).
 - The initial administrator is `admin@gmail.com` (SYSTEM_ADMIN), created by `npm run db:seed` with a randomly generated temporary password supplied through `SEED_ADMIN_PASSWORD`. That password is never stored in Git, logs or documentation.
 
 ## ADR-023: Separation of duties for purchase-order approval
-**Status:** Accepted (16 Nov 2026). Implementation is scheduled for **Module 3**.  
+**Status:** Accepted (16 Nov 2026). Implementation is scheduled for **Module 4 (Procurement)**; corrected from "Module 3" by decision D1 (Module 3 is the Product Catalogue).  
 **Decision:**
 - Procurement officers create purchase orders. Only holders of `procurement:approve` (MANAGER, SYSTEM_ADMIN) may approve or reject them, and only for branches within their scope (ADR-019).
 - **The creator of a purchase order can never approve or reject it, regardless of role.** This includes SYSTEM_ADMIN and MANAGER, even though SYSTEM_ADMIN holds every permission. The check compares the PO's `createdBy` with the acting user inside the approval transaction; on mismatch the request fails with 403.
@@ -215,3 +215,22 @@ The project owner approved the roles, branch access and authentication strategy 
 - The root `.gitignore` excludes `.env*` (except `.env.example`), keys, `node_modules/`, build output, coverage, `*.tsbuildinfo`, the generated Prisma client, logs and editor/office lock files.
 - A mirror backup of the pre-move backend history is kept outside the repository (`../_backups/backend-history-20261116.git`).  
 **Reason:** One history for code and its documentation keeps them synchronised and reviewable together.
+
+## ADR-025: Product catalogue design
+**Status:** Accepted (16 Nov 2026). Proposal: `docs/proposals/module-3-catalogue.md`.  
+**Decision:**
+- Category, Brand and Product are organisation-wide, not branch-scoped.
+- **Case-insensitive uniqueness** uses a normalised `name_key` column with a plain UNIQUE constraint. Expression indexes are avoided because Prisma would try to drop them.
+- The SKU is normalised to upper case, validated by a DB CHECK and UNIQUE, and immutable, like the tracking mode and identifier policy (D9).
+- Serialized products declare `identifier_type` (IMEI/SERIAL) and `identifiers_per_unit` (1–2). A DB CHECK enforces consistency with the tracking mode.
+- Prices are `Decimal(14,2)`, TZS, **tax-exclusive**, organisation-wide.
+- **Field-level authorization:** price fields need `catalogue:price`, other fields `catalogue:write`. A mixed PATCH needs both, otherwise it is rejected atomically.
+- **Cost visibility** follows `catalogue:cost_read`, applied in the response mapper so that no endpoint can leak it.
+- Category and brand rows are row-locked (`FOR SHARE` when products are created or reassigned, `FOR UPDATE` when deactivating), so a product can never be attached to a category or brand that is being deactivated concurrently.
+- All writes and their audit events share one transaction. Price changes are audited as `product.price_changed` with per-field old → new values; selling below cost adds `product.selling_below_cost`.
+- `db:seed:demo` inserts demo catalogue data only when `NODE_ENV=development`, and refuses otherwise.  
+**Reason:** FR-CAT-01..04, US-03, decisions D3–D15.
+
+## ADR-026: Organisation-wide audit events visible to audit readers
+**Status:** Accepted (16 Nov 2026). Amends ADR-020 and doc 06 §6.4 item 4 (decision D13).  
+**Decision:** Users without `branches:access_all` see audit events of their branches **plus** organisation-wide catalogue events (`entityType` Category, Brand or Product, which have no branch). Identity and authentication events with no branch (logins, logouts, token reuse, password changes, user administration without a single branch) remain visible only to SYSTEM_ADMIN.

@@ -11,11 +11,11 @@ This is a logical model, not a final Prisma schema. Field types, nullability and
 | Branch *(implemented)* | id, code, name, address, phone, isActive | Business stock/sales location. Code is unique, upper-case and immutable. Deactivate, never delete. |
 | UserBranch *(implemented)* | userId, branchId (composite PK), assignedById, assignedAt | Limits a user to assigned branches |
 | RefreshToken *(implemented)* | id, userId, tokenHash, familyId, expiresAt, sessionExpiresAt, revokedAt, revokedReason, replacedById | Login session. Only the SHA-256 hash is stored; rotation links tokens; `familyId` groups one login. `sessionExpiresAt` = login + 30 days, copied on rotation. DB check: `expiresAt <= sessionExpiresAt`. |
-| Category | id, name | Product classification |
-| Brand | id, name | Manufacturer/brand |
-| Product | id, sku, name, categoryId, brandId, trackingMode, costPrice, sellingPrice, reorderLevel | Product model; SKU unique |
-| ProductUnit | id, productId, branchId, status | One physical serialized device |
-| UnitIdentifier | id, productUnitId, type, value, isPrimary | IMEI/serial identifiers; value unique globally or per policy |
+| Category *(Module 3)* | id, name, nameKey, description, isActive | Flat product classification. `nameKey` (lower-case) is unique, making names case-insensitive. Deactivate, never delete; deactivation blocked while active products use it. |
+| Brand *(Module 3)* | id, name, nameKey, isActive | Manufacturer/brand; same rules as Category |
+| Product *(Module 3)* | id, sku, name, description, categoryId, brandId, trackingMode, identifierType, identifiersPerUnit, costPrice, sellingPrice, reorderLevel, specifications, isActive, createdById, updatedById | Product model (SKU). SKU unique, upper-case, immutable. Tracking mode and identifier policy immutable. Prices `Decimal(14,2)` TZS, **tax-exclusive**, organisation-wide; cost hidden from roles without `catalogue:cost_read`. Variants are separate SKUs. |
+| ProductUnit *(Module 5)* | id, productId, branchId, status | One physical serialized device, created only at receiving; opening stock via audited adjustment |
+| UnitIdentifier *(Module 5)* | id, productUnitId, type, value, isPrimary | IMEI/serial identifiers. Value normalised and **unique across the whole organisation** (D3). Count per unit = product's `identifiersPerUnit` |
 | Supplier | id, name, phone, email, address | Supplier master record |
 | Purchase | id, reference, supplierId, branchId, status, createdBy | Purchase order lifecycle |
 | PurchaseItem | id, purchaseId, productId, orderedQty, receivedQty, unitCost | Products ordered |

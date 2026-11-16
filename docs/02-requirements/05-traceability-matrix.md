@@ -3,7 +3,7 @@
 | Requirement | Design/module | Test evidence |
 |---|---|---|
 | FR-AUTH-01..04 | Auth module, JWT guard, permission guard | Auth integration tests; forbidden-role tests |
-| FR-CAT-01..04 | Catalogue module, Product model | Product CRUD, unique SKU, tracking mode tests |
+| FR-CAT-01..04 | Catalogue module (Module 3): Category, Brand, Product | Product CRUD, unique SKU (incl. race), tracking mode/immutability tests; see Module 3 evidence |
 | FR-UNIT-01..04 | ProductUnit / UnitIdentifier | Duplicate identifier and single-sale tests |
 | FR-PUR-01..05 | Supplier, Purchase, PurchaseItem, receiving service | Purchase state and receiving idempotency tests |
 | FR-INV-01..07 | Inventory, StockMovement, StockBalance | Branch stock, transfer, adjustment and ledger tests |

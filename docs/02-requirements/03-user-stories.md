@@ -36,11 +36,22 @@
 
 ## Product catalogue
 **US-03 — Register product:** As inventory staff, I want to register a product model.
+- *(Module 3)* Category/brand names are unique regardless of letter case; inactive ones cannot be used.
+- *(Module 3)* Serialized products declare IMEI or SERIAL and 1–2 identifiers per unit; SKU and tracking mode cannot be changed later.
+- *(Module 3)* Initial cost and selling prices (tax-exclusive) are entered at creation.
+
+**US-13 — Change product prices:** As a manager, I want to change product prices so that pricing reflects market conditions. *(Module 3)*
+- Only MANAGER and SYSTEM_ADMIN can change prices of existing products; inventory officers cannot.
+- Each change records old and new values, who changed them and when.
+- Setting a selling price below cost is allowed but recorded as a separate audit event.
+
+**US-14 — Protect cost prices:** As a manager, I want cashiers and technicians not to see cost prices. *(Module 3)*
+- Product responses for CASHIER and TECHNICIAN never contain `costPrice`.
 - SKU, name, category, brand and tracking mode are validated.
 - Duplicate SKU is rejected.
 - Inactive products cannot be used in new purchases/sales.
 
-**US-12 — Approve purchase orders (separation of duties):** As a manager, I want to approve or reject purchase orders created by others, so no one can authorise their own purchase. *(Module 3)*
+**US-12 — Approve purchase orders (separation of duties):** As a manager, I want to approve or reject purchase orders created by others, so no one can authorise their own purchase. *(Module 4 — Procurement)*
 - Only users with `procurement:approve` (MANAGER, SYSTEM_ADMIN) can approve or reject.
 - The creator of a purchase order cannot approve or reject it, whatever their role (403).
 - Approval and rejection record who acted, when, and the reason (for rejection) in the audit log.

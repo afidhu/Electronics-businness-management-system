@@ -8,6 +8,7 @@ erDiagram
   REFRESH_TOKEN |o--o| REFRESH_TOKEN : replaced_by
   BRANCH ||--o{ AUDIT_LOG : scoped_to
   CATEGORY ||--o{ PRODUCT : groups
+  USER ||--o{ PRODUCT : created_by
   BRAND ||--o{ PRODUCT : identifies
   PRODUCT ||--o{ PRODUCT_UNIT : has
   PRODUCT ||--o{ STOCK_BALANCE : summarized
@@ -87,21 +88,34 @@ erDiagram
   }
   CATEGORY {
     uuid id PK
-    string name UK
+    string name
+    string name_key UK "lower-case; case-insensitive unique"
+    string description
+    boolean is_active
   }
   BRAND {
     uuid id PK
-    string name UK
+    string name
+    string name_key UK "lower-case; case-insensitive unique"
+    boolean is_active
   }
   PRODUCT {
     uuid id PK
-    string sku UK
+    string sku UK "upper-case, immutable"
     string name
-    string tracking_mode
-    decimal cost_price
-    decimal selling_price
+    string description
+    enum tracking_mode "SERIALIZED | QUANTITY, immutable"
+    enum identifier_type "IMEI | SERIAL (serialized only)"
+    int identifiers_per_unit "1-2 (serialized only)"
+    decimal cost_price "14,2 TZS"
+    decimal selling_price "14,2 TZS, tax-exclusive"
+    int reorder_level
+    json specifications
+    boolean is_active
     uuid category_id FK
     uuid brand_id FK
+    uuid created_by_id FK
+    uuid updated_by_id FK
   }
   PRODUCT_UNIT {
     uuid id PK

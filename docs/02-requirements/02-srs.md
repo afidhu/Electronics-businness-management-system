@@ -78,6 +78,8 @@ Administrator, Manager, Inventory Officer, Procurement Officer, Cashier/Salesper
 - FR-ADM-02 (Must): Audit events record actor, action, entity, timestamp and safe metadata.
 
 ## 2.5 Business rules
+- BR-12 *(16 Nov 2026)*: Product selling prices are tax-exclusive; tax is calculated separately at sale time from configurable settings (ADR-012).
+- BR-13 *(16 Nov 2026)*: SKU and tracking mode cannot change after a product is created; a category or brand cannot be deactivated while active products use it.
 - BR-11 *(16 Nov 2026)*: Separation of duties: a purchase order cannot be approved or rejected by the user who created it, regardless of role. Approval and rejection are recorded in the audit log.
 - BR-01: Completed sale cannot make available stock negative.
 - BR-02: A serialized unit is uniquely identifiable and sold at most once.
@@ -129,10 +131,14 @@ Administrator, Manager, Inventory Officer, Procurement Officer, Cashier/Salesper
 | Runtime | Node.js 24 LTS | ADR-008 |
 | Roles & permissions | 7 system roles, 29 permission keys, fail-closed guards | ADR-016, doc 06 |
 | Authentication | 15-min JWT access token; 7-day rotating refresh token (hashed, HttpOnly cookie); **30-day absolute session maximum**; Argon2id; rate limit + lockout | ADR-017, ADR-018, ADR-021 |
-| Purchase approval | MANAGER and SYSTEM_ADMIN approve; procurement officers create but never approve; **the creator of a PO can never approve or reject it, regardless of role**; approvals and rejections are audited (Module 3) | doc 06 §6.4, ADR-023 |
+| Purchase approval | MANAGER and SYSTEM_ADMIN approve; procurement officers create but never approve; **the creator of a PO can never approve or reject it, regardless of role**; approvals and rejections are audited (Module 4) | doc 06 §6.4, ADR-023 |
 | Discounts & returns | Authorised only by MANAGER and SYSTEM_ADMIN; limits/rules in later modules | doc 06 §6.4 |
 | Staff visibility | SYSTEM_ADMIN manages all users; MANAGER views staff of own branches only | doc 06 §6.4 |
 | Audit visibility | SYSTEM_ADMIN all; MANAGER/AUDITOR own branches; global login events admin-only | doc 06 §6.4, ADR-020 |
+| Product catalogue | Organisation-wide; flat categories; case-insensitive unique category/brand names; SKU unique, upper-case, immutable; variants are separate SKUs | proposal M3, ADR-025 |
+| Product prices | **Tax-exclusive**, organisation-wide; initial prices by catalogue writers; changes only by MANAGER/SYSTEM_ADMIN (`catalogue:price`); every change audited old → new; selling below cost allowed but audited | ADR-025 |
+| Cost-price visibility | Never returned to CASHIER or TECHNICIAN (server-side) | doc 06 §6.4a |
+| Serialized identifiers | IMEI (15 digits + Luhn) or serial; 1–2 per unit; unique across the organisation after normalisation; units created only at receiving (Module 5) | ADR-025 |
 | Initial administrator | `admin@gmail.com` (SYSTEM_ADMIN), seeded with a random temporary password; change on first login | ops §12.8 |
 | Branch access | Admin all branches; others assigned (Cashier/Technician one); backend-enforced | ADR-019 |
 | Audit | Append-only audit log of sensitive actions | ADR-020 |

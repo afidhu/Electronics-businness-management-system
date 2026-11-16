@@ -60,6 +60,9 @@ Every response carries an `X-Request-Id` header, which is also returned as `requ
 | `CSRF_CHECK_FAILED` | 403 | Refresh/logout without `X-Requested-With: XMLHttpRequest` or from a disallowed Origin |
 | `WEAK_PASSWORD` | 400 | Password policy not met (see `details`) |
 | `BRANCH_ASSIGNMENT_INVALID` | 400 | Branch assignments break the role's rules |
+| `REFERENCE_INACTIVE` | 400 | Selected category/brand is inactive |
+| `CATEGORY_IN_USE` / `BRAND_IN_USE` | 409 | Deactivation blocked: active products depend on it |
+| `IMMUTABLE_FIELD` | 400 | Attempt to change sku, trackingMode, identifierType or identifiersPerUnit |
 | `ADMIN_LOCKOUT_PREVENTED` | 409 | Would deactivate/demote yourself or remove the last active administrator |
 
 Business modules add specific codes (e.g. `INSUFFICIENT_STOCK`) as they are implemented.
@@ -84,11 +87,13 @@ OpenAPI UI at `/api/docs` and JSON at `/api/docs-json`. Enabled by default outsi
 | GET | `/permissions` | Permission catalogue. *Module 2* | roles:read |
 | GET/POST | `/branches` | List (scoped)/create branches. *Module 2* | branches:read/write |
 | GET/PATCH | `/branches/:id` | View (403 outside scope)/update or deactivate. *Module 2* | branches:read/write |
-| GET/POST | `/categories` | List/create categories | catalogue:read/write |
-| GET/POST | `/brands` | List/create brands | catalogue:read/write |
-| GET/POST | `/products` | List/create products | catalogue:read/write |
-| GET/PATCH | `/products/:id` | View/update product | catalogue:read/write |
-| GET/POST | `/products/:id/units` | List/register serialized units | inventory:read/write |
+| GET/POST | `/categories` | List (`q`, `isActive`)/create categories. *Module 3* | catalogue:read/write |
+| GET/PATCH | `/categories/:id` | View/update or deactivate (409 `CATEGORY_IN_USE`). *Module 3* | catalogue:read/write |
+| GET/POST | `/brands` | List/create brands. *Module 3* | catalogue:read/write |
+| GET/PATCH | `/brands/:id` | View/update or deactivate (409 `BRAND_IN_USE`). *Module 3* | catalogue:read/write |
+| GET/POST | `/products` | List (`q`, `sku`, `categoryId`, `brandId`, `trackingMode`, `isActive`, `sort`, `order`)/create with initial prices. *Module 3* | catalogue:read/write |
+| GET/PATCH | `/products/:id` | View/update. Price fields need `catalogue:price`; other fields need `catalogue:write`. *Module 3* | catalogue:read; catalogue:write and/or catalogue:price |
+| GET/POST | `/products/:id/units` | Serialized units, **moved to Module 5 (Inventory)**; created only by receiving (D2) | inventory:read/write |
 | GET | `/inventory/balances` | Branch stock balances | inventory:read |
 | GET | `/inventory/movements` | Stock ledger | inventory:read |
 | POST | `/inventory/adjustments` | Approved adjustment | inventory:adjust |
@@ -162,3 +167,9 @@ Login is limited to 5 requests per IP per minute (429 `RATE_LIMITED` with `Retry
   "lastLoginAt": null, "role": { "key": "CASHIER", "name": "Cashier / Salesperson" },
   "branches": [ { "id": "uuid", "code": "DSM01", "name": "…" } ], "createdAt": "…Z", "updatedAt": "…Z" }
 ```
+
+## Product catalogue (Module 3; proposal `docs/proposals/module-3-catalogue.md`)
+- Money fields are decimal strings in TZS. **`sellingPrice` is tax-exclusive** (`priceIncludesTax: false`); the POS adds tax from configurable settings.
+- `costPrice` is **omitted** from every product response unless the caller holds `catalogue:cost_read` (not CASHIER or TECHNICIAN).
+- `sku` is normalised to upper case; it, `trackingMode`, `identifierType` and `identifiersPerUnit` cannot be changed (400 `IMMUTABLE_FIELD`).
+- `PATCH /products/:id` is checked field by field: `costPrice`/`sellingPrice` need `catalogue:price`, every other field needs `catalogue:write`. The whole request fails with 403 if any part is not permitted.

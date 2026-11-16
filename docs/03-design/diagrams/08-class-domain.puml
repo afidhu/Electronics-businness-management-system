@@ -5,7 +5,9 @@ class Role { +id: UUID +key: string +name: string +maxBranches: int? }
 class Permission { +id: UUID +key: string +description: string }
 class RefreshToken { +tokenHash: string +familyId: UUID +expiresAt: DateTime +sessionExpiresAt: DateTime +revokedAt: DateTime? +revokedReason: string? }
 class Branch { +id: UUID +code: string +name: string +isActive: boolean }
-class Product { +id: UUID +sku: string +name: string +trackingMode: TrackingMode +sellingPrice: Decimal }
+class Category { +id: UUID +name: string +isActive: boolean }
+class Brand { +id: UUID +name: string +isActive: boolean }
+class Product { +id: UUID +sku: string +name: string +trackingMode: TrackingMode +identifierType: IdentifierType? +identifiersPerUnit: int? +costPrice: Decimal +sellingPrice: Decimal +reorderLevel: int +specifications: JSON +isActive: boolean }
 class ProductUnit { +id: UUID +serialNumber: string +status: UnitStatus }
 class StockBalance { +quantity: Decimal +reservedQuantity: Decimal }
 class StockMovement { +movementType: string +quantityDelta: Decimal +createdAt: DateTime }
@@ -25,6 +27,8 @@ User "0..*" -- "0..*" Branch : assigned
 User "1" -- "0..*" RefreshToken : sessions
 RefreshToken "0..1" -- "0..1" RefreshToken : replacedBy
 Branch "1" -- "0..*" StockBalance
+Category "1" -- "0..*" Product
+Brand "1" -- "0..*" Product
 Product "1" -- "0..*" StockBalance
 Product "1" -- "0..*" ProductUnit
 Product "1" -- "0..*" StockMovement
