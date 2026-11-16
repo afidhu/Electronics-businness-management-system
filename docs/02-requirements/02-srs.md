@@ -48,6 +48,11 @@ Administrator, Manager, Inventory Officer, Procurement Officer, Cashier/Salesper
 - FR-INV-05 (Must): Transfers store source, destination, items, status and movement history.
 - FR-INV-06 (Should): Physical counts can be reconciled with approval.
 - FR-INV-07 (Should): Low-stock products can be identified by reorder threshold.
+- FR-INV-08 (Must, Module 5): Goods are received only against APPROVED or PARTIALLY_RECEIVED purchase orders, by a user with `inventory:receive` and access to the order's branch.
+- FR-INV-09 (Must, Module 5): A receipt records receiver, time, supplier delivery/invoice references, lines, quantities and every serialized unit's identifiers.
+- FR-INV-10 (Must, Module 5): Every stock change writes immutable movement rows and updates balances in the same transaction; balances equal the sum of movements.
+- FR-INV-11 (Must, Module 5): Inventory writes require an idempotency key; a retried request never applies twice.
+- FR-INV-12 (Must, Module 5): Inventory responses omit costs for users without `catalogue:cost_read`.
 
 ### Customers and sales
 - FR-SALE-01 (Must): Cashier can search products and check sellable stock at assigned branch.
@@ -80,8 +85,11 @@ Administrator, Manager, Inventory Officer, Procurement Officer, Cashier/Salesper
 ## 2.5 Business rules
 - BR-12 *(16 Nov 2026)*: Product selling prices are tax-exclusive; tax is calculated separately at sale time from configurable settings (ADR-012).
 - BR-13 *(16 Nov 2026)*: SKU and tracking mode cannot change after a product is created; a category or brand cannot be deactivated while active products use it.
-- BR-14 *(16 Nov 2026)*: A user can never receive (partially or finally) a purchase order they created or approved; receiving is performed by another user with `inventory:receive`, and the receiver and all receiving details are audited. *(Enforced in Module 5; ADR-028.)*
+- BR-14 *(16 Nov 2026; extended by I4)*: A user can never receive (partially or finally) a purchase order they created, **submitted (in any cycle)** or approved; receiving is performed by another user with `inventory:receive`, and the receiver and all receiving details are audited. *(Enforced in Module 5; ADR-028.)*
 - BR-15 *(16 Nov 2026)*: Purchase order lines are frozen once submitted; purchase quantities are whole numbers; unit costs are > 0, TZS and tax-exclusive; a product appears at most once per order.
+- BR-16 *(16 Nov 2026)*: On-hand stock can never be negative; serialized on-hand equals the number of IN_STOCK units at that branch.
+- BR-17 *(16 Nov 2026)*: Serial/IMEI identifiers are unique across the organisation after normalisation and are never reused.
+- BR-18 *(16 Nov 2026)*: Inventory is valued at moving weighted-average cost, organisation-wide per product; receiving never changes catalogue cost or selling prices.
 - BR-11 *(16 Nov 2026)*: Separation of duties: a purchase order cannot be approved or rejected by the user who created it, regardless of role. Approval and rejection are recorded in the audit log.
 - BR-01: Completed sale cannot make available stock negative.
 - BR-02: A serialized unit is uniquely identifiable and sold at most once.
@@ -146,6 +154,9 @@ Administrator, Manager, Inventory Officer, Procurement Officer, Cashier/Salesper
 | Suppliers | Organisation-wide; case-insensitive unique name; TIN unique when set; no payment/bank data; deactivation blocked while open orders exist | ADR-027 |
 | Receiving separation of duties | Creator and approver of an order can never receive it | BR-14, ADR-028 |
 | Purchase requisitions; value-based approval limits | Deferred (not in MVP) | proposal M4 (P1, P10) |
+| Inventory valuation | Moving weighted average, organisation-wide; catalogue prices unaffected | ADR-029 (I1, I2) |
+| Receiving | Approved/partially received POs only; no over-receiving; creator, submitter and approver can't receive; idempotent; PO line cost | ADR-028, ADR-030 (I3–I5, I19, I20) |
+| Inventory stage 5.2 (deferred) | Close short (CLOSED), adjustments with approval and `inventory:adjust_approve`, opening balances, two-step transfers | proposal M5 §0 (I6–I10c, I13, I16) |
 | Initial administrator | `admin@gmail.com` (SYSTEM_ADMIN), seeded with a random temporary password; change on first login | ops §12.8 |
 | Branch access | Admin all branches; others assigned (Cashier/Technician one); backend-enforced | ADR-019 |
 | Audit | Append-only audit log of sensitive actions | ADR-020 |

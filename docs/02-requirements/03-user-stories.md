@@ -74,7 +74,14 @@
 - Serialized products require a unique identifier for each physical unit.
 - Receiving creates movement entries and updates stock in one transaction.
 - Duplicate receiving is prevented.
-- *(BR-14, Module 5)* The user who created or approved the purchase order cannot receive it (partially or finally); another user with `inventory:receive` must. The receiver and all details are audited.
+- *(BR-14, Module 5)* The user who created, submitted or approved the purchase order cannot receive it (partially or finally); another user with `inventory:receive` must. The receiver and all details are audited.
+- *(Module 5)* Quantities never exceed the outstanding amount; serialized lines need exactly `identifiersPerUnit` valid identifiers per unit, unique across the organisation; a retry with the same idempotency key returns the original receipt.
+
+**US-17..20 (Module 5.2, deferred):** close a PO short; adjust stock with approval; transfer stock between branches; load opening stock. Designs are approved in `proposals/module-5-inventory.md`.
+
+**US-21 — Low stock:** As a manager, I see products whose available stock is at or below their reorder level in my branches. *(Module 5: `GET /inventory/balances?lowStock=true`)*
+
+**US-22 — Valuation:** As a manager or auditor, I see stock value per branch and product at weighted-average cost, with in-transit stock shown separately. *(Module 5)*
 
 **US-05 — View branch stock:** As a manager, I want to view stock by branch.
 - Results show on-hand, reserved and available quantity.

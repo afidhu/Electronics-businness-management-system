@@ -8,6 +8,7 @@ stateDiagram-v2
   APPROVED --> PARTIALLY_RECEIVED: Module 5 receive (not creator/approver)
   APPROVED --> RECEIVED: Module 5 receive (not creator/approver)
   PARTIALLY_RECEIVED --> RECEIVED: Module 5 receive
+  PARTIALLY_RECEIVED --> CLOSED: close short + reason (procurement:approve) - stage 5.2, deferred
   DRAFT --> CANCELLED: cancel + reason (procurement:write)
   SUBMITTED --> CANCELLED: cancel + reason (procurement:write)
   REJECTED --> CANCELLED: cancel + reason (procurement:write)
@@ -23,5 +24,8 @@ stateDiagram-v2
     RETURNED --> IN_STOCK: inspected and restocked
     SOLD --> UNDER_REPAIR: accepted claim
     UNDER_REPAIR --> SOLD: repaired / returned to customer
-    IN_STOCK --> WRITTEN_OFF: approved write-off
+    IN_STOCK --> WRITTEN_OFF: approved write-off (adjustment, stage 5.2)
+    IN_STOCK --> IN_TRANSIT: transfer dispatched (stage 5.2)
+    IN_TRANSIT --> IN_STOCK: transfer received / cancelled (stage 5.2)
+    WRITTEN_OFF --> IN_STOCK: approved FOUND adjustment (stage 5.2)
   }

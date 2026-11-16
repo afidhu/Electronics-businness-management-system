@@ -68,6 +68,12 @@ Every response carries an `X-Request-Id` header, which is also returned as `requ
 | `SUPPLIER_IN_USE` | 409 | Supplier deactivation blocked: open purchase orders exist |
 | `PURCHASE_NOT_EDITABLE` | 409 | Edit attempted on an order that is not DRAFT |
 | `DUPLICATE_PRODUCT_LINE` | 400 | The same product appears on more than one line |
+| `SELF_RECEIVING_FORBIDDEN` | 403 | Creator, submitter or approver tried to receive the order (BR-14) |
+| `OVER_RECEIVING` | 409 | Quantity exceeds what is still outstanding on the PO line |
+| `INVALID_IDENTIFIER` | 400 | IMEI (15 digits + Luhn) or serial format invalid |
+| `IDENTIFIER_COUNT_MISMATCH` | 400 | Units/identifiers don't match quantity × identifiersPerUnit |
+| `DUPLICATE_IDENTIFIER` | 409 | Identifier already exists or is repeated in the request |
+| `IDEMPOTENCY_KEY_REUSED` | 409 | Same idempotency key used for a different request |
 | `ADMIN_LOCKOUT_PREVENTED` | 409 | Would deactivate/demote yourself or remove the last active administrator |
 
 Business modules add specific codes (e.g. `INSUFFICIENT_STOCK`) as they are implemented.
@@ -99,10 +105,13 @@ OpenAPI UI at `/api/docs` and JSON at `/api/docs-json`. Enabled by default outsi
 | GET/POST | `/products` | List (`q`, `sku`, `categoryId`, `brandId`, `trackingMode`, `isActive`, `sort`, `order`)/create with initial prices. *Module 3* | catalogue:read/write |
 | GET/PATCH | `/products/:id` | View/update. Price fields need `catalogue:price`; other fields need `catalogue:write`. *Module 3* | catalogue:read; catalogue:write and/or catalogue:price |
 | GET/POST | `/products/:id/units` | Serialized units, **moved to Module 5 (Inventory)**; created only by receiving (D2) | inventory:read/write |
-| GET | `/inventory/balances` | Branch stock balances | inventory:read |
-| GET | `/inventory/movements` | Stock ledger | inventory:read |
-| POST | `/inventory/adjustments` | Approved adjustment | inventory:adjust |
-| POST | `/inventory/transfers` | Create transfer | inventory:transfer |
+| GET | `/inventory/balances` | Balances (`branchId`, `productId`, `q`, `lowStock`); on hand, reserved, available, in transit. *Module 5* | inventory:read |
+| GET | `/inventory/movements` | Ledger (`branchId`, `productId`, `type`, `from`, `to`); values need cost_read. *Module 5* | inventory:read |
+| GET | `/inventory/units`, `/inventory/units/:id`, `/inventory/units/lookup?identifier=` | Serialized units; lookup outside scope reveals only "exists in another branch" (I15). *Module 5* | inventory:read |
+| GET | `/goods-receipts`, `/goods-receipts/:id` | Goods receipts (branch-scoped). *Module 5* | inventory:read |
+| GET | `/inventory/valuation` | WAC valuation per branch/product; in transit separate. *Module 5* | reports:inventory + catalogue:cost_read |
+| POST | `/inventory/adjustments` | Adjustment with two-step approval. **Stage 5.2, deferred** | inventory:adjust (+ inventory:adjust_approve) |
+| POST | `/inventory/transfers` | Two-step transfer. **Stage 5.2, deferred** | inventory:transfer |
 | GET/POST | `/suppliers` | Supplier list (`q`, `isActive`)/create. *Module 4* | procurement:read/write |
 | GET/PATCH | `/suppliers/:id` | View/update or deactivate (409 `SUPPLIER_IN_USE`). *Module 4* | procurement:read/write |
 | GET/POST | `/purchases` | List (branch-scoped; `status`, `branchId`, `supplierId`, `q`, `createdFrom`, `createdTo`, `awaitingMyApproval`)/create draft. *Module 4* | procurement:read/write |
@@ -112,7 +121,8 @@ OpenAPI UI at `/api/docs` and JSON at `/api/docs-json`. Enabled by default outsi
 | POST | `/purchases/:id/reject` | Reject `{ reason }`; creator/submitter forbidden. *Module 4* | procurement:approve |
 | POST | `/purchases/:id/reopen` | REJECTED → DRAFT. *Module 4* | procurement:write |
 | POST | `/purchases/:id/cancel` | Cancel `{ reason }`; before approval: procurement:write; APPROVED: procurement:approve and nothing received. *Module 4* | procurement:write / approve |
-| POST | `/purchases/:id/receive` | Receive goods. **Module 5**; a user who created or approved the order cannot receive it (BR-14) | inventory:receive |
+| POST | `/purchases/:id/receive` | Receive goods (partial/complete, idempotent). *Module 5*. The order's creator, submitter or approver can't receive it (BR-14) | inventory:receive |
+| GET/POST | `/products/:id/units` | Superseded by `/inventory/units?productId=`; units are created only by receiving | — |
 | GET/POST | `/customers` | Customer list/create | customers:read/write |
 | POST | `/sales` | Checkout | sales:create |
 | GET | `/sales/:id` | Sale detail/receipt | sales:read |
@@ -189,3 +199,13 @@ Login is limited to 5 requests per IP per minute (429 `RATE_LIMITED` with `Retry
 - Order money: TZS decimal strings, tax-exclusive. `subtotal` and `lineTotal` are always calculated by the server; client-sent totals are rejected.
 - Separation of duties: the creator and the submitter of an order can never approve or reject it (403 `SELF_APPROVAL_FORBIDDEN`), including SYSTEM_ADMIN. It is also enforced by a database CHECK.
 - **Module 5 hand-off:** `GET /purchases?status=APPROVED&branchId=…` lists orders ready for receiving. Each order exposes `createdBy` and `approvedBy`, so that Module 5 can block receiving by either (BR-14), plus `quantityOrdered` and `quantityReceived` per line.
+
+## Inventory (Module 5, stage 5.1; proposal `docs/proposals/module-5-inventory.md`)
+**Receive:** `POST /purchases/:id/receive`
+```json
+{ "idempotencyKey": "uuid", "supplierDeliveryRef": "DN-88231", "supplierInvoiceRef": "INV-2026-1145", "notes": "…",
+  "items": [ { "purchaseItemId": "…", "quantity": 2, "units": [ { "identifiers": ["5CG3301ABC"] }, { "identifiers": ["5CG3301ABD"] } ] },
+             { "purchaseItemId": "…", "quantity": 30 } ] }
+```
+- The response is `201` with the receipt (`GRN-…`, PO status, lines, units). A retry with the same key and body returns `200` with the same receipt; the same key with a different body returns 409 `IDEMPOTENCY_KEY_REUSED`.
+- Costs (`unitCost`, values, averages) are omitted without `catalogue:cost_read`.

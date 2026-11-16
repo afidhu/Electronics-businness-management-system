@@ -79,6 +79,11 @@ Branch-scoped roles must have at least one active branch. `SYSTEM_ADMIN` must ha
 - **Branch scope:** purchase orders are visible and actionable only within the user's branches (SYSTEM_ADMIN: all). Suppliers are organisation-wide and their audit events are visible to every audit reader (P13).
 - **Invariant:** every holder of `procurement:read` also holds `catalogue:cost_read`, because order lines show unit costs.
 
+## 6.4c Module 5 inventory decisions (approved 16 Nov 2026)
+- **Receiving (BR-14, I4):** `inventory:receive` holders may receive only orders they did not create, submit (in any cycle) or approve. SYSTEM_ADMIN can't bypass this (I22). Enforced in the service and by a DB trigger.
+- **Costs:** unit costs, movement values and valuation are returned only with `catalogue:cost_read` (CASHIER sees quantities only). Valuation also requires `reports:inventory`.
+- **I9 (deferred to stage 5.2):** a new `inventory:adjust_approve` permission for MANAGER and SYSTEM_ADMIN will be added together with the adjustment workflow. **No new permission exists in stage 5.1.**
+
 ## 6.5 Enforcement summary
 | Layer | Mechanism |
 |---|---|

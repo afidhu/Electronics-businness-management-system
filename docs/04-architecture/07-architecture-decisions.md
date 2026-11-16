@@ -250,4 +250,30 @@ The project owner approved the roles, branch access and authentication strategy 
 
 ## ADR-028: Receiving separation of duties (requirement for Module 5)
 **Status:** Accepted (16 Nov 2026, decision P15 Option B). **To be implemented and tested in Module 5.**  
-**Decision:** A user can never receive goods, partially or finally, against a purchase order they **created** or **approved**. Receiving must be performed by another user holding `inventory:receive`, and the receiving user and all receiving details are audited. `inventory:receive` stays with PROCUREMENT_OFFICER. Module 4 provides `createdById` and `approvedById` on every order so the check can be enforced in the backend (and, ideally, by a database constraint on the goods-receipt table).
+**Decision:** A user can never receive goods, partially or finally, against a purchase order they **created**, **submitted (in any cycle; extended by I4)** or **approved**. SYSTEM_ADMIN can't bypass this (I22). *Implemented in Module 5 (service and `goods_receipts` trigger).* Receiving must be performed by another user holding `inventory:receive`, and the receiving user and all receiving details are audited. `inventory:receive` stays with PROCUREMENT_OFFICER. Module 4 provides `createdById` and `approvedById` on every order so the check can be enforced in the backend (and, ideally, by a database constraint on the goods-receipt table).
+
+## ADR-029: Inventory valuation — moving weighted average, organisation-wide
+**Status:** Accepted (16 Nov 2026, I1, I2).  
+**Decision:**
+- Each product has one organisation-wide average cost (`inventory_valuations.average_cost`, Decimal 18,4).
+- On every costed increase: `new = (onHandAll × avg + qty × unitCost) / (onHandAll + qty)`, rounded half-up to 4 decimals. When organisation on-hand is 0, the average equals the receipt cost.
+- Decreases and transfers don't change the average.
+- Each receipt cost is kept on its movement and on each serialized unit.
+- Receiving never changes `Product.costPrice` or `sellingPrice` (D5 preserved).
+- Every stock change for a product first locks that product's valuation row, so concurrent changes serialise per product.  
+**Alternatives rejected:** last purchase cost (not a cost-flow method, distorts margins); FIFO (cost layers, much more complexity for the MVP); specific identification only (doesn't cover quantity products).
+
+## ADR-030: Stock ledger, balances, receiving and idempotency
+**Status:** Accepted (16 Nov 2026). Stage 5.1 implemented; 5.2 (close short, adjustments, opening balances, transfers) deferred with designs preserved in the proposal.  
+**Decision:**
+- `stock_movements` is the append-only ledger (DB trigger). Serialized products move one unit per row.
+- `stock_balances` is the projection (`on_hand >= 0` CHECK), updated in the same transaction. The tests reconcile balances against Σ movements and against IN_STOCK units.
+- **Receiving:**
+  - Lock order: PO row, then valuation rows, then balances, all in sorted order.
+  - Quantities can never exceed outstanding (service check + Module 4 CHECK).
+  - Identifiers are normalised and unique forever (DB UNIQUE + format CHECKs).
+  - Unit identifier count and type are verified by a deferred trigger.
+  - BR-14 is checked in the service and by a trigger.
+  - Unit cost comes from the PO line.
+  - The PO becomes PARTIALLY_RECEIVED or RECEIVED via a conditional update.
+- **Idempotency:** a mandatory UUID key, unique per receipt, stored with a SHA-256 request hash. A replay returns the original; a different payload returns 409. A concurrent duplicate is resolved by the UNIQUE constraint.

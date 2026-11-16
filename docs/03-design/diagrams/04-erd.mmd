@@ -19,6 +19,12 @@ erDiagram
   PURCHASE ||--|{ PURCHASE_ITEM : contains
   PRODUCT ||--o{ PURCHASE_ITEM : ordered
   PURCHASE ||--o{ GOODS_RECEIPT : received_as
+  GOODS_RECEIPT ||--|{ GOODS_RECEIPT_ITEM : contains
+  PURCHASE_ITEM ||--o{ GOODS_RECEIPT_ITEM : received_by
+  GOODS_RECEIPT_ITEM ||--o{ PRODUCT_UNIT : registers
+  PRODUCT_UNIT ||--|{ UNIT_IDENTIFIER : identified_by
+  PRODUCT ||--o| INVENTORY_VALUATION : valued_at
+  PRODUCT_UNIT |o--o{ STOCK_MOVEMENT : unit_movements
   GOODS_RECEIPT ||--|{ STOCK_MOVEMENT : creates
   PRODUCT ||--o{ STOCK_MOVEMENT : movement_for
   BRANCH ||--o{ STOCK_MOVEMENT : location
@@ -120,17 +126,36 @@ erDiagram
   }
   PRODUCT_UNIT {
     uuid id PK
-    uuid product_id FK
-    string serial_number UK
-    string status
+    uuid product_id FK "SERIALIZED products only"
     uuid branch_id FK
+    enum status "IN_STOCK|IN_TRANSIT|RESERVED|SOLD|RETURNED|UNDER_REPAIR|WRITTEN_OFF"
+    decimal unit_cost
+    uuid goods_receipt_item_id FK
+  }
+  UNIT_IDENTIFIER {
+    uuid id PK
+    uuid product_unit_id FK
+    enum type "IMEI|SERIAL"
+    string value UK "normalised; never reused"
+    boolean is_primary
+  }
+  GOODS_RECEIPT_ITEM {
+    uuid id PK
+    uuid goods_receipt_id FK
+    uuid purchase_item_id FK
+    uuid product_id FK
+    int quantity
+    decimal unit_cost "from PO line"
+  }
+  INVENTORY_VALUATION {
+    uuid product_id PK
+    decimal average_cost "18,4 moving WAC"
   }
   STOCK_BALANCE {
-    uuid id PK
-    uuid product_id FK
-    uuid branch_id FK
-    decimal quantity
-    decimal reserved_quantity
+    uuid product_id PK,FK
+    uuid branch_id PK,FK
+    int on_hand ">= 0"
+    int reserved "0 until POS"
   }
   SUPPLIER {
     uuid id PK
@@ -180,16 +205,26 @@ erDiagram
   }
   GOODS_RECEIPT {
     uuid id PK
+    string reference UK "GRN-BRANCH-YYYY-NNNNNN"
     uuid purchase_id FK
-    string receipt_reference UK
+    uuid branch_id FK
+    uuid received_by_id FK "not creator/submitter/approver"
+    string idempotency_key UK
+    string supplier_delivery_ref
+    string supplier_invoice_ref
   }
   STOCK_MOVEMENT {
     uuid id PK
     uuid product_id FK
     uuid branch_id FK
-    string movement_type
-    decimal quantity_delta
-    string source_reference
+    enum movement_type
+    int quantity_delta "non-zero"
+    decimal unit_cost
+    decimal value_delta
+    uuid product_unit_id FK
+    string reference_type
+    uuid reference_id
+    uuid actor_id FK
   }
   CUSTOMER {
     uuid id PK
