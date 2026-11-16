@@ -75,9 +75,13 @@ model Branch {
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  users     UserBranch[]
-  purchases Purchase[]
-  auditLogs AuditLog[]
+  users          UserBranch[]
+  goodsReceipts  GoodsReceipt[]
+  productUnits   ProductUnit[]
+  stockBalances  StockBalance[]
+  stockMovements StockMovement[]
+  purchases      Purchase[]
+  auditLogs      AuditLog[]
 
   @@map("branches")
 }
@@ -98,19 +102,21 @@ model User {
   createdAt           DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt           DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  role               Role           @relation(fields: [roleId], references: [id])
-  branches           UserBranch[]   @relation("UserBranches")
-  assignedBy         UserBranch[]   @relation("BranchAssigner")
+  role               Role            @relation(fields: [roleId], references: [id])
+  branches           UserBranch[]    @relation("UserBranches")
+  assignedBy         UserBranch[]    @relation("BranchAssigner")
   refreshTokens      RefreshToken[]
   auditLogs          AuditLog[]
-  productsCreated    Product[]      @relation("ProductCreatedBy")
-  productsUpdated    Product[]      @relation("ProductUpdatedBy")
-  purchasesCreated   Purchase[]     @relation("PurchaseCreatedBy")
-  purchasesUpdated   Purchase[]     @relation("PurchaseUpdatedBy")
-  purchasesSubmitted Purchase[]     @relation("PurchaseSubmittedBy")
-  purchasesApproved  Purchase[]     @relation("PurchaseApprovedBy")
-  purchasesRejected  Purchase[]     @relation("PurchaseRejectedBy")
-  purchasesCancelled Purchase[]     @relation("PurchaseCancelledBy")
+  productsCreated    Product[]       @relation("ProductCreatedBy")
+  productsUpdated    Product[]       @relation("ProductUpdatedBy")
+  purchasesCreated   Purchase[]      @relation("PurchaseCreatedBy")
+  purchasesUpdated   Purchase[]      @relation("PurchaseUpdatedBy")
+  purchasesSubmitted Purchase[]      @relation("PurchaseSubmittedBy")
+  purchasesApproved  Purchase[]      @relation("PurchaseApprovedBy")
+  purchasesRejected  Purchase[]      @relation("PurchaseRejectedBy")
+  purchasesCancelled Purchase[]      @relation("PurchaseCancelledBy")
+  goodsReceipts      GoodsReceipt[]
+  stockMovements     StockMovement[]
 
   @@index([roleId])
   @@map("users")
@@ -259,11 +265,16 @@ model Product {
   createdAt          DateTime        @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt          DateTime        @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  category      Category       @relation(fields: [categoryId], references: [id])
-  brand         Brand          @relation(fields: [brandId], references: [id])
-  purchaseItems PurchaseItem[]
-  createdBy     User?          @relation("ProductCreatedBy", fields: [createdById], references: [id])
-  updatedBy     User?          @relation("ProductUpdatedBy", fields: [updatedById], references: [id])
+  category          Category            @relation(fields: [categoryId], references: [id])
+  brand             Brand               @relation(fields: [brandId], references: [id])
+  purchaseItems     PurchaseItem[]
+  goodsReceiptItems GoodsReceiptItem[]
+  units             ProductUnit[]
+  stockBalances     StockBalance[]
+  stockMovements    StockMovement[]
+  valuation         InventoryValuation?
+  createdBy         User?               @relation("ProductCreatedBy", fields: [createdById], references: [id])
+  updatedBy         User?               @relation("ProductUpdatedBy", fields: [updatedById], references: [id])
 
   @@index([name])
   @@index([categoryId])
@@ -341,15 +352,16 @@ model Purchase {
   cancelledAt        DateTime? @map("cancelled_at") @db.Timestamptz(3)
   cancellationReason String?   @map("cancellation_reason") @db.VarChar(500)
 
-  supplier    Supplier       @relation(fields: [supplierId], references: [id])
-  branch      Branch         @relation(fields: [branchId], references: [id])
-  createdBy   User           @relation("PurchaseCreatedBy", fields: [createdById], references: [id])
-  updatedBy   User           @relation("PurchaseUpdatedBy", fields: [updatedById], references: [id])
-  submittedBy User?          @relation("PurchaseSubmittedBy", fields: [submittedById], references: [id])
-  approvedBy  User?          @relation("PurchaseApprovedBy", fields: [approvedById], references: [id])
-  rejectedBy  User?          @relation("PurchaseRejectedBy", fields: [rejectedById], references: [id])
-  cancelledBy User?          @relation("PurchaseCancelledBy", fields: [cancelledById], references: [id])
-  items       PurchaseItem[]
+  supplier      Supplier       @relation(fields: [supplierId], references: [id])
+  branch        Branch         @relation(fields: [branchId], references: [id])
+  createdBy     User           @relation("PurchaseCreatedBy", fields: [createdById], references: [id])
+  updatedBy     User           @relation("PurchaseUpdatedBy", fields: [updatedById], references: [id])
+  submittedBy   User?          @relation("PurchaseSubmittedBy", fields: [submittedById], references: [id])
+  approvedBy    User?          @relation("PurchaseApprovedBy", fields: [approvedById], references: [id])
+  rejectedBy    User?          @relation("PurchaseRejectedBy", fields: [rejectedById], references: [id])
+  cancelledBy   User?          @relation("PurchaseCancelledBy", fields: [cancelledById], references: [id])
+  items         PurchaseItem[]
+  goodsReceipts GoodsReceipt[]
 
   @@index([branchId, status])
   @@index([supplierId, status])
@@ -375,8 +387,9 @@ model PurchaseItem {
   /// quantity_ordered * unit_cost (DB CHECK).
   lineTotal        Decimal @map("line_total") @db.Decimal(14, 2)
 
-  purchase Purchase @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
-  product  Product  @relation(fields: [productId], references: [id])
+  purchase     Purchase           @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
+  receiptItems GoodsReceiptItem[]
+  product      Product            @relation(fields: [productId], references: [id])
 
   @@unique([purchaseId, productId])
   @@unique([purchaseId, lineNumber])
@@ -391,4 +404,170 @@ model DocumentSequence {
   updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
 
   @@map("document_sequences")
+}
+
+// ---------------------------------------------------------------------------
+// Module 5 — Inventory, stage 5.1 (ADR-029, ADR-030; proposals/module-5-inventory.md)
+// Stage 5.2 (adjustments, transfers, close short) is deferred: no tables yet.
+// ---------------------------------------------------------------------------
+
+/// Ledger movement types (full approved list; 5.1 writes PURCHASE_RECEIPT only).
+enum MovementType {
+  OPENING_BALANCE
+  PURCHASE_RECEIPT
+  ADJUSTMENT_INCREASE
+  ADJUSTMENT_DECREASE
+  TRANSFER_OUT
+  TRANSFER_IN
+}
+
+/// Serialized unit lifecycle (FR-UNIT-02 + IN_TRANSIT, I11).
+enum UnitStatus {
+  IN_STOCK
+  IN_TRANSIT
+  RESERVED
+  SOLD
+  RETURNED
+  UNDER_REPAIR
+  WRITTEN_OFF
+}
+
+/// One goods-receiving event against a purchase order (FR-INV-08/09). Insert-only.
+model GoodsReceipt {
+  id                  String   @id @default(uuid()) @db.Uuid
+  /// GRN-{BRANCHCODE}-{YYYY}-{NNNNNN}
+  reference           String   @unique @db.VarChar(40)
+  purchaseId          String   @map("purchase_id") @db.Uuid
+  branchId            String   @map("branch_id") @db.Uuid
+  /// BR-14: never the PO's creator, submitter (any cycle) or approver (trigger).
+  receivedById        String   @map("received_by_id") @db.Uuid
+  receivedAt          DateTime @default(now()) @map("received_at") @db.Timestamptz(3)
+  supplierDeliveryRef String?  @map("supplier_delivery_ref") @db.VarChar(100)
+  supplierInvoiceRef  String?  @map("supplier_invoice_ref") @db.VarChar(100)
+  notes               String?  @db.VarChar(1000)
+  /// Mandatory client key (I19); a replay returns this receipt.
+  idempotencyKey      String   @unique @map("idempotency_key") @db.Uuid
+  /// SHA-256 of the canonical request, to detect key reuse with another payload.
+  requestHash         String   @map("request_hash") @db.Char(64)
+
+  purchase   Purchase           @relation(fields: [purchaseId], references: [id])
+  branch     Branch             @relation(fields: [branchId], references: [id])
+  receivedBy User               @relation(fields: [receivedById], references: [id])
+  items      GoodsReceiptItem[]
+
+  @@index([purchaseId])
+  @@index([branchId, receivedAt])
+  @@map("goods_receipts")
+}
+
+model GoodsReceiptItem {
+  id             String  @id @default(uuid()) @db.Uuid
+  goodsReceiptId String  @map("goods_receipt_id") @db.Uuid
+  purchaseItemId String  @map("purchase_item_id") @db.Uuid
+  productId      String  @map("product_id") @db.Uuid
+  quantity       Int
+  /// Copied from the PO line (I20).
+  unitCost       Decimal @map("unit_cost") @db.Decimal(14, 2)
+
+  goodsReceipt GoodsReceipt  @relation(fields: [goodsReceiptId], references: [id])
+  purchaseItem PurchaseItem  @relation(fields: [purchaseItemId], references: [id])
+  product      Product       @relation(fields: [productId], references: [id])
+  units        ProductUnit[]
+
+  @@unique([goodsReceiptId, purchaseItemId])
+  @@index([purchaseItemId])
+  @@map("goods_receipt_items")
+}
+
+/// One physical serialized device (ADR-004). Created by receiving (5.1).
+model ProductUnit {
+  id                 String     @id @default(uuid()) @db.Uuid
+  productId          String     @map("product_id") @db.Uuid
+  branchId           String     @map("branch_id") @db.Uuid
+  status             UnitStatus @default(IN_STOCK)
+  /// Receipt cost of this unit (traceability; valuation uses WAC, ADR-029).
+  unitCost           Decimal    @map("unit_cost") @db.Decimal(14, 2)
+  goodsReceiptItemId String?    @map("goods_receipt_item_id") @db.Uuid
+  createdAt          DateTime   @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt          DateTime   @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  product          Product           @relation(fields: [productId], references: [id])
+  branch           Branch            @relation(fields: [branchId], references: [id])
+  goodsReceiptItem GoodsReceiptItem? @relation(fields: [goodsReceiptItemId], references: [id])
+  identifiers      UnitIdentifier[]
+  movements        StockMovement[]
+
+  @@index([productId, branchId, status])
+  @@index([branchId, status])
+  @@map("product_units")
+}
+
+/// IMEI/serial identifiers; value normalised and unique forever (D3, BR-17).
+model UnitIdentifier {
+  id            String         @id @default(uuid()) @db.Uuid
+  productUnitId String         @map("product_unit_id") @db.Uuid
+  type          IdentifierType
+  value         String         @unique @db.VarChar(64)
+  isPrimary     Boolean        @default(false) @map("is_primary")
+
+  productUnit ProductUnit @relation(fields: [productUnitId], references: [id])
+
+  @@index([productUnitId])
+  @@map("unit_identifiers")
+}
+
+/// Query-optimised projection of the ledger (BR-04, BR-16).
+model StockBalance {
+  productId String   @map("product_id") @db.Uuid
+  branchId  String   @map("branch_id") @db.Uuid
+  onHand    Int      @default(0) @map("on_hand")
+  /// Stays 0 until POS reservations (I17).
+  reserved  Int      @default(0)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  product Product @relation(fields: [productId], references: [id])
+  branch  Branch  @relation(fields: [branchId], references: [id])
+
+  @@id([productId, branchId])
+  @@index([branchId])
+  @@map("stock_balances")
+}
+
+/// Append-only inventory ledger (FR-INV-02, BR-04). Trigger blocks UPDATE/DELETE.
+model StockMovement {
+  id            String       @id @default(uuid()) @db.Uuid
+  productId     String       @map("product_id") @db.Uuid
+  branchId      String       @map("branch_id") @db.Uuid
+  movementType  MovementType @map("movement_type")
+  quantityDelta Int          @map("quantity_delta")
+  unitCost      Decimal      @map("unit_cost") @db.Decimal(14, 2)
+  valueDelta    Decimal      @map("value_delta") @db.Decimal(16, 2)
+  productUnitId String?      @map("product_unit_id") @db.Uuid
+  /// GOODS_RECEIPT (5.1); ADJUSTMENT / TRANSFER (5.2).
+  referenceType String       @map("reference_type") @db.VarChar(30)
+  referenceId   String       @map("reference_id") @db.Uuid
+  actorId       String       @map("actor_id") @db.Uuid
+  createdAt     DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  product     Product      @relation(fields: [productId], references: [id])
+  branch      Branch       @relation(fields: [branchId], references: [id])
+  productUnit ProductUnit? @relation(fields: [productUnitId], references: [id])
+  actor       User         @relation(fields: [actorId], references: [id])
+
+  @@index([productId, branchId, createdAt])
+  @@index([branchId, createdAt])
+  @@index([referenceType, referenceId])
+  @@index([productUnitId])
+  @@map("stock_movements")
+}
+
+/// Moving weighted-average cost, organisation-wide per product (ADR-029).
+model InventoryValuation {
+  productId   String   @id @map("product_id") @db.Uuid
+  averageCost Decimal  @map("average_cost") @db.Decimal(18, 4)
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  product Product @relation(fields: [productId], references: [id])
+
+  @@map("inventory_valuations")
 }

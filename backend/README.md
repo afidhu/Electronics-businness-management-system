@@ -93,6 +93,7 @@ src/
   users/  branches/  audit/              user & branch administration; append-only audit log (GET /audit-logs)
   catalogue/                             categories, brands, products; field-level price permissions; cost masking (Module 3)
   procurement/                           suppliers, purchase orders, approval workflow, PO numbering (Module 4)
+  inventory/                             goods receiving, units, ledger, balances, WAC valuation (Module 5.1)
   database/seed.ts                       `npm run db:seed`
   common/
     errors/          error codes, AppException, error response DTO
@@ -122,6 +123,13 @@ test/                e2e specs, test-env guard, global setup
 - Lifecycle: DRAFT → SUBMITTED → APPROVED | REJECTED (→ reopen → DRAFT); cancellation with a reason. Receiving belongs to Module 5.
 - **The creator or submitter of an order can never approve or reject it**, whatever their role. Enforced in the service and by database CHECK constraints.
 - Totals are computed by the server; lines are frozen once submitted (database trigger).
+
+## Inventory (Module 5, stage 5.1)
+- `POST /purchases/:id/receive` (mandatory `idempotencyKey`). Serialized lines send `units: [{ identifiers: [...] }]`.
+- The PO's creator, submitter (any cycle) or approver can never receive it (BR-14: service and DB trigger).
+- Reads: `/goods-receipts`, `/inventory/balances` (`lowStock`), `/inventory/movements`, `/inventory/units` (`/lookup`), `/inventory/valuation`.
+- **All stock changes go through `StockLedgerService`:** lock valuations (sorted), then change balances and write the append-only ledger in one transaction.
+- Stage 5.2 (adjustments, transfers, close short, opening balances) is deferred.
 
 ## Conventions for new modules
 - Every route declares exactly one of `@Public()`, `@AuthenticatedOnly()` or `@RequirePermissions(PERMISSIONS.X)`; undeclared routes are denied.

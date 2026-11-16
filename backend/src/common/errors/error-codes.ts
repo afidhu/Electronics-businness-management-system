@@ -56,6 +56,20 @@ export enum ErrorCode {
   PURCHASE_NOT_EDITABLE = 'PURCHASE_NOT_EDITABLE',
   /** Same product on more than one line of an order. */
   DUPLICATE_PRODUCT_LINE = 'DUPLICATE_PRODUCT_LINE',
+
+  // Module 5 — inventory
+  /** BR-14: creator, submitter or approver tried to receive the order. */
+  SELF_RECEIVING_FORBIDDEN = 'SELF_RECEIVING_FORBIDDEN',
+  /** Quantity exceeds what is still outstanding on the PO line (I3). */
+  OVER_RECEIVING = 'OVER_RECEIVING',
+  /** IMEI/serial format invalid. */
+  INVALID_IDENTIFIER = 'INVALID_IDENTIFIER',
+  /** Units/identifiers don't match quantity × identifiersPerUnit. */
+  IDENTIFIER_COUNT_MISMATCH = 'IDENTIFIER_COUNT_MISMATCH',
+  /** Identifier already registered, or repeated within the request. */
+  DUPLICATE_IDENTIFIER = 'DUPLICATE_IDENTIFIER',
+  /** Same idempotency key reused for a different request. */
+  IDEMPOTENCY_KEY_REUSED = 'IDEMPOTENCY_KEY_REUSED',
 }
 
 /** Fallback code for a bare HTTP status (used when no explicit code is given). */

@@ -6,6 +6,7 @@ import { BranchesModule } from './branches/branches.module';
 import { CatalogueModule } from './catalogue/catalogue.module';
 import { AppConfigModule } from './config/app-config.module';
 import { HealthModule } from './health/health.module';
+import { InventoryModule } from './inventory/inventory.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { ProcurementModule } from './procurement/procurement.module';
 import { UsersModule } from './users/users.module';
@@ -22,6 +23,7 @@ import { UsersModule } from './users/users.module';
     UsersModule,
     CatalogueModule,
     ProcurementModule,
+    InventoryModule,
   ],
 })
 export class AppModule {}

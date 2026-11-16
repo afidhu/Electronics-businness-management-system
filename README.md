@@ -18,8 +18,10 @@ Independent prototype for practical software-engineering demonstration and inter
 | 1. Foundation (config, Prisma, API conventions, health, Swagger) | Done |
 | 2. Authentication & authorization (RBAC, branches, JWT + rotating refresh, audit) | Done |
 | 3. Product catalogue (categories, brands, products, price permissions) | Done |
-| 4. Procurement (suppliers, purchase orders, separation of duties) | Done (awaiting review) |
-| 5. Inventory (receiving, serialized units, stock) | Next (proposal required) |
+| 4. Procurement (suppliers, purchase orders, separation of duties) | Done |
+| 5. Inventory stage 5.1 (receiving, serialized units, ledger, balances, valuation) | Done (awaiting review) |
+| 5. Inventory stage 5.2 (close short, adjustments, opening stock, transfers) | Deferred: design approved |
+| 6. POS / sales | Next (proposal required) |
 
 Progress and decisions: `docs/README.md` (change log) and `docs/04-architecture/07-architecture-decisions.md` (ADRs).
 

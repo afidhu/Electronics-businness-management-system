@@ -1006,11 +1006,12 @@ describe('Procurement — Module 4 (e2e)', () => {
       expect(none.body.data).toEqual([]);
     });
 
-    it('no receive endpoint exists in Module 4', async () => {
+    it('receiving is provided by Module 5 and requires a validated body', async () => {
       const po = await ctx.prisma.purchase.findFirstOrThrow({
         where: { status: 'APPROVED' },
       });
-      await act('invA', po.id, 'receive').expect(404);
+      const res = await act('invA', po.id, 'receive').expect(400); // idempotencyKey/items missing
+      expect(res.body.code).toBe('VALIDATION_ERROR');
     });
   });
 

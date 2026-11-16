@@ -95,3 +95,26 @@ Do not deploy a release if critical tests fail, migrations are unreviewed, produ
   - removing the cancel permission rule failed 2 tests
   - removing the branch check on actions **initially went undetected**: the tests asserted only the HTTP status, and the final read masked the committed change. The tests were strengthened to assert that a refused action changes nothing, after which this mutant failed 2 tests. All code was restored.
 - **Stability:** 3/3 consecutive runs green.
+
+## 10.9 Module 5 stage 5.1 evidence (inventory: receiving, ledger, valuation)
+- **Totals after stage 5.1:** **184 unit** and **270 e2e** tests, all passing (Modules 1–5).
+- **Unit (12 new, `inventory-rules.spec.ts`):** moving WAC (zero stock, blending, half-up rounding to 4 dp, sequences, invalid input); BR-14 receiver check (creator, submitter, approver, earlier submitters); canonical-JSON idempotency hash; serialized unit preparation (dual IMEI, count and format problems, repeats after normalisation); GRN references.
+- **E2E `inventory.e2e-spec.ts` (40):**
+  - **BR-14:** creator/submitter, a different submitter, SYSTEM_ADMIN approver, earlier-cycle submitter; blocked attempts audited; refusals change nothing; MANAGER/CASHIER/TECHNICIAN/AUDITOR lack `inventory:receive`
+  - partial → complete receiving (PARTIALLY_RECEIVED → RECEIVED); over-receiving 409 with nothing changed
+  - dual-SIM IMEIs with normalisation; 5 invalid-identifier cases; duplicates within a request and against existing identifiers after normalisation
+  - idempotent replay (200, same receipt, stock not doubled); key reuse with another payload or user → 409; key mandatory; **3 concurrent identical requests → one 201 + two 200**
+  - **3 parallel receipts of the full outstanding → one 201 + two 409**; the same serial on two orders concurrently → one 201 + one 409
+  - non-receivable statuses; another branch refused with nothing changed; inactive product receivable (I5), inactive branch not
+  - WAC 115.0000 after 10@100 + 30@120, with catalogue prices untouched (I2) and the valuation API value 4600.00
+  - valuation permissions; branch-scoped balances and low-stock filter; **CASHIER never sees costs** in movements, units, receipts; TECHNICIAN no access; identifier lookup with I15 disclosure; unit history; branch audit visibility
+  - DB guarantees: append-only ledger, receipts and identifiers; non-negative balances; BR-14 trigger on direct insert; deferred identifier count/type trigger
+  - **reconciliation:** every balance = Σ movements; serialized on-hand = IN_STOCK units; Σ PO received = Σ receipt quantities
+- **Defect found by the tests:** the deferred identifier trigger in migration `…_inventory` used a PL/pgSQL `CASE` that referenced a column absent from one of the firing tables, so every serialized receipt failed with 500. It was confirmed by a direct SQL reproduction and fixed by a **forward corrective migration** `…_inventory_identifier_trigger_fix`; the applied migration was not edited, so no database reset was needed.
+- **Mutation check:**
+  - removing the service BR-14 check failed 3 tests, and the **DB trigger still refused** (0 self-receipts stored)
+  - removing the over-receiving guard failed 1 test, and the **Module 4 CHECK kept 0 lines over-received**
+  - removing cost masking failed 1 test
+  - all code was restored
+- **Stability:** 3/3 consecutive runs green.
+- **Not run:** `npm audit` could not reach the registry (network error). No dependencies were added in Module 5.

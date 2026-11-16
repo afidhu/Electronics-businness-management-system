@@ -67,3 +67,17 @@ A requirement is not complete until its acceptance criteria and relevant test ev
 | BR-15 (frozen lines, whole quantities, cost > 0, one line per product) | DTOs, trigger `purchase_items_locked`, CHECKs | › creating; editing; database guarantees |
 | FR-ADM-01 (branch isolation) | `BranchAccessService`, `@BranchScoped` | › reading and branch isolation |
 | BR-14 (receiving SoD) | **Module 5** (data provided: createdBy/approvedBy) | › Module 5 hand-off |
+
+### Module 5 stage 5.1 (16 Nov 2026)
+| Requirement | Implemented in | Test evidence |
+|---|---|---|
+| FR-PUR-03/04, FR-INV-08/09, US-04 | `inventory/receiving.service.ts`, `POST /purchases/:id/receive` | `inventory.e2e-spec.ts` › partial and complete receiving |
+| BR-14 (+I4, I22) | service check + `goods_receipts_br14` trigger | › BR-14; database guarantees; mutation check |
+| FR-UNIT-01..03/05, D3, BR-17 | `product_units`, `unit_identifiers` (UNIQUE, format CHECK, deferred count/type trigger) | › serialized identifiers; concurrency |
+| FR-INV-01/02/10, BR-04, BR-16 | `stock-ledger.service.ts`, append-only `stock_movements`, `stock_balances` CHECK | › reconciliation; database guarantees |
+| BR-06 / FR-INV-11 (I19) | idempotency key + request hash | › idempotency |
+| I3 (no over-receiving) | service + Module 4 CHECK | › over-receiving; concurrency |
+| BR-18 / ADR-029 (I1, I2) | `inventory_valuations`, `weightedAverageCost` | `inventory-rules.spec.ts`; › valuation |
+| FR-INV-07 / US-21 (I21) | `GET /inventory/balances?lowStock=true` | › read APIs |
+| FR-INV-12 (cost masking) | `inventory-query.service.ts` | › CASHIER sees quantities but never costs |
+| FR-INV-03/05/06, I6–I10c, I13 | **Stage 5.2, deferred** | — |
