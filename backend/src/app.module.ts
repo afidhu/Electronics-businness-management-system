@@ -7,6 +7,7 @@ import { CatalogueModule } from './catalogue/catalogue.module';
 import { AppConfigModule } from './config/app-config.module';
 import { HealthModule } from './health/health.module';
 import { PrismaModule } from './prisma/prisma.module';
+import { ProcurementModule } from './procurement/procurement.module';
 import { UsersModule } from './users/users.module';
 
 @Module({
@@ -20,6 +21,7 @@ import { UsersModule } from './users/users.module';
     BranchesModule,
     UsersModule,
     CatalogueModule,
+    ProcurementModule,
   ],
 })
 export class AppModule {}

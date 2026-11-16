@@ -92,6 +92,7 @@ src/
   access/                                permission matrix (permissions.ts), RBAC seed, branch access, GET /roles, /permissions
   users/  branches/  audit/              user & branch administration; append-only audit log (GET /audit-logs)
   catalogue/                             categories, brands, products; field-level price permissions; cost masking (Module 3)
+  procurement/                           suppliers, purchase orders, approval workflow, PO numbering (Module 4)
   database/seed.ts                       `npm run db:seed`
   common/
     errors/          error codes, AppException, error response DTO
@@ -115,6 +116,12 @@ test/                e2e specs, test-env guard, global setup
 - `/categories`, `/brands`, `/products`. Prices are TZS decimal strings and **tax-exclusive**.
 - `costPrice` is omitted unless the caller holds `catalogue:cost_read` (not CASHIER or TECHNICIAN).
 - `PATCH /products/:id`: price fields need `catalogue:price` (MANAGER, SYSTEM_ADMIN); other fields need `catalogue:write`. SKU and tracking policy are immutable.
+
+## Procurement (Module 4)
+- `/suppliers`, `/purchases` plus `/purchases/:id/{submit,approve,reject,reopen,cancel}`.
+- Lifecycle: DRAFT → SUBMITTED → APPROVED | REJECTED (→ reopen → DRAFT); cancellation with a reason. Receiving belongs to Module 5.
+- **The creator or submitter of an order can never approve or reject it**, whatever their role. Enforced in the service and by database CHECK constraints.
+- Totals are computed by the server; lines are frozen once submitted (database trigger).
 
 ## Conventions for new modules
 - Every route declares exactly one of `@Public()`, `@AuthenticatedOnly()` or `@RequirePermissions(PERMISSIONS.X)`; undeclared routes are denied.

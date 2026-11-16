@@ -76,6 +76,7 @@ model Branch {
   updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
 
   users     UserBranch[]
+  purchases Purchase[]
   auditLogs AuditLog[]
 
   @@map("branches")
@@ -97,13 +98,19 @@ model User {
   createdAt           DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt           DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  role            Role           @relation(fields: [roleId], references: [id])
-  branches        UserBranch[]   @relation("UserBranches")
-  assignedBy      UserBranch[]   @relation("BranchAssigner")
-  refreshTokens   RefreshToken[]
-  auditLogs       AuditLog[]
-  productsCreated Product[]      @relation("ProductCreatedBy")
-  productsUpdated Product[]      @relation("ProductUpdatedBy")
+  role               Role           @relation(fields: [roleId], references: [id])
+  branches           UserBranch[]   @relation("UserBranches")
+  assignedBy         UserBranch[]   @relation("BranchAssigner")
+  refreshTokens      RefreshToken[]
+  auditLogs          AuditLog[]
+  productsCreated    Product[]      @relation("ProductCreatedBy")
+  productsUpdated    Product[]      @relation("ProductUpdatedBy")
+  purchasesCreated   Purchase[]     @relation("PurchaseCreatedBy")
+  purchasesUpdated   Purchase[]     @relation("PurchaseUpdatedBy")
+  purchasesSubmitted Purchase[]     @relation("PurchaseSubmittedBy")
+  purchasesApproved  Purchase[]     @relation("PurchaseApprovedBy")
+  purchasesRejected  Purchase[]     @relation("PurchaseRejectedBy")
+  purchasesCancelled Purchase[]     @relation("PurchaseCancelledBy")
 
   @@index([roleId])
   @@map("users")
@@ -252,14 +259,136 @@ model Product {
   createdAt          DateTime        @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt          DateTime        @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  category  Category @relation(fields: [categoryId], references: [id])
-  brand     Brand    @relation(fields: [brandId], references: [id])
-  createdBy User?    @relation("ProductCreatedBy", fields: [createdById], references: [id])
-  updatedBy User?    @relation("ProductUpdatedBy", fields: [updatedById], references: [id])
+  category      Category       @relation(fields: [categoryId], references: [id])
+  brand         Brand          @relation(fields: [brandId], references: [id])
+  purchaseItems PurchaseItem[]
+  createdBy     User?          @relation("ProductCreatedBy", fields: [createdById], references: [id])
+  updatedBy     User?          @relation("ProductUpdatedBy", fields: [updatedById], references: [id])
 
   @@index([name])
   @@index([categoryId])
   @@index([brandId])
   @@index([isActive])
   @@map("products")
+}
+
+// ---------------------------------------------------------------------------
+// Module 4 — Procurement (ADR-027; docs/proposals/module-4-procurement.md)
+// Receiving (quantity_received, PARTIALLY_RECEIVED/RECEIVED) belongs to Module 5.
+// ---------------------------------------------------------------------------
+
+enum PurchaseStatus {
+  DRAFT
+  SUBMITTED
+  APPROVED
+  REJECTED
+  PARTIALLY_RECEIVED
+  RECEIVED
+  CANCELLED
+}
+
+/// Organisation-wide supplier master record (P11). No payment/bank data.
+model Supplier {
+  id            String   @id @default(uuid()) @db.Uuid
+  name          String   @db.VarChar(150)
+  /// lower-case, whitespace-collapsed name: case-insensitive uniqueness.
+  nameKey       String   @unique @map("name_key") @db.VarChar(150)
+  contactPerson String?  @map("contact_person") @db.VarChar(150)
+  phone         String?  @db.VarChar(30)
+  email         String?  @db.VarChar(254)
+  address       String?  @db.VarChar(300)
+  /// Tanzanian TIN, 9 digits (normalised); unique when set.
+  tin           String?  @unique @db.VarChar(9)
+  notes         String?  @db.VarChar(1000)
+  isActive      Boolean  @default(true) @map("is_active")
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt     DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  purchases Purchase[]
+
+  @@index([isActive])
+  @@map("suppliers")
+}
+
+/// Purchase order (FR-PUR-02). Separation of duties enforced by DB CHECKs.
+model Purchase {
+  id                   String         @id @default(uuid()) @db.Uuid
+  /// PO-{BRANCHCODE}-{YYYY}-{NNNNNN}; immutable (P6).
+  reference            String         @unique @db.VarChar(40)
+  supplierId           String         @map("supplier_id") @db.Uuid
+  branchId             String         @map("branch_id") @db.Uuid
+  status               PurchaseStatus @default(DRAFT)
+  currency             String         @default("TZS") @db.Char(3)
+  /// Sum of line totals, computed by the server (tax-exclusive).
+  subtotal             Decimal        @default(0) @db.Decimal(14, 2)
+  supplierReference    String?        @map("supplier_reference") @db.VarChar(100)
+  expectedDeliveryDate DateTime?      @map("expected_delivery_date") @db.Date
+  notes                String?        @db.VarChar(1000)
+
+  createdById        String    @map("created_by_id") @db.Uuid
+  createdAt          DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedById        String    @map("updated_by_id") @db.Uuid
+  updatedAt          DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  submittedById      String?   @map("submitted_by_id") @db.Uuid
+  submittedAt        DateTime? @map("submitted_at") @db.Timestamptz(3)
+  approvedById       String?   @map("approved_by_id") @db.Uuid
+  approvedAt         DateTime? @map("approved_at") @db.Timestamptz(3)
+  approvalNote       String?   @map("approval_note") @db.VarChar(500)
+  rejectedById       String?   @map("rejected_by_id") @db.Uuid
+  rejectedAt         DateTime? @map("rejected_at") @db.Timestamptz(3)
+  rejectionReason    String?   @map("rejection_reason") @db.VarChar(500)
+  cancelledById      String?   @map("cancelled_by_id") @db.Uuid
+  cancelledAt        DateTime? @map("cancelled_at") @db.Timestamptz(3)
+  cancellationReason String?   @map("cancellation_reason") @db.VarChar(500)
+
+  supplier    Supplier       @relation(fields: [supplierId], references: [id])
+  branch      Branch         @relation(fields: [branchId], references: [id])
+  createdBy   User           @relation("PurchaseCreatedBy", fields: [createdById], references: [id])
+  updatedBy   User           @relation("PurchaseUpdatedBy", fields: [updatedById], references: [id])
+  submittedBy User?          @relation("PurchaseSubmittedBy", fields: [submittedById], references: [id])
+  approvedBy  User?          @relation("PurchaseApprovedBy", fields: [approvedById], references: [id])
+  rejectedBy  User?          @relation("PurchaseRejectedBy", fields: [rejectedById], references: [id])
+  cancelledBy User?          @relation("PurchaseCancelledBy", fields: [cancelledById], references: [id])
+  items       PurchaseItem[]
+
+  @@index([branchId, status])
+  @@index([supplierId, status])
+  @@index([status])
+  @@index([createdAt])
+  @@map("purchases")
+}
+
+/// One product per line (P9). Lines frozen outside DRAFT (trigger).
+model PurchaseItem {
+  id               String  @id @default(uuid()) @db.Uuid
+  purchaseId       String  @map("purchase_id") @db.Uuid
+  lineNumber       Int     @map("line_number")
+  productId        String  @map("product_id") @db.Uuid
+  /// Product name at order time (documents stay readable after renames).
+  productName      String  @map("product_name") @db.VarChar(200)
+  /// Whole units (P7).
+  quantityOrdered  Int     @map("quantity_ordered")
+  /// Written ONLY by Module 5 receiving.
+  quantityReceived Int     @default(0) @map("quantity_received")
+  /// TZS, > 0, tax-exclusive (P8).
+  unitCost         Decimal @map("unit_cost") @db.Decimal(14, 2)
+  /// quantity_ordered * unit_cost (DB CHECK).
+  lineTotal        Decimal @map("line_total") @db.Decimal(14, 2)
+
+  purchase Purchase @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
+  product  Product  @relation(fields: [productId], references: [id])
+
+  @@unique([purchaseId, productId])
+  @@unique([purchaseId, lineNumber])
+  @@index([productId])
+  @@map("purchase_items")
+}
+
+/// Atomic document counters, e.g. scope "PO:DSM01:2026" (P6). Reusable.
+model DocumentSequence {
+  scope     String   @id @db.VarChar(100)
+  lastValue Int      @map("last_value")
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@map("document_sequences")
 }

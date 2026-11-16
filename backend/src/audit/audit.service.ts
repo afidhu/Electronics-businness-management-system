@@ -17,6 +17,7 @@ export const ORGANISATION_WIDE_ENTITY_TYPES = [
   'Category',
   'Brand',
   'Product',
+  'Supplier', // Module 4, P13
 ] as const;
 
 /** Keys never stored in audit metadata, at any depth (NFR-SEC-04). */

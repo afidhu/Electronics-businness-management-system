@@ -55,3 +55,15 @@ A requirement is not complete until its acceptance criteria and relevant test ev
 | BR-07/BR-08 (audited price changes; decimal money) | `product.price_changed`, `Decimal(14,2)`, money DTOs | › audited with old → new |
 | BR-12 (tax-exclusive) | `priceIncludesTax: false`; no tax in catalogue | › creating products |
 | BR-13 (immutability; deactivation) | service checks + DB trigger; row locks | › immutability; deactivation rules |
+
+### Module 4 (16 Nov 2026)
+| Requirement | Implemented in | Test evidence |
+|---|---|---|
+| FR-PUR-01 (suppliers) / US-15 | `procurement/suppliers.*` | `procurement.e2e-spec.ts` › suppliers |
+| FR-PUR-02 (PO data) / US-16 | `procurement/purchases.*`, `dto/purchase.dto.ts` | › creating purchase orders |
+| FR-PUR-05 (lifecycle incl. APPROVED/REJECTED) | `procurement-rules.ts`, conditional transitions, DB status-consistency CHECK | `procurement-rules.spec.ts`; › approval, rejection; cancellation; concurrency |
+| FR-PUR-06 (supplier reference) | `purchases.supplier_reference` | › creating purchase orders |
+| BR-11 / US-12 / ADR-023 (separation of duties) | service check + `purchases_sod_*_chk` | › separation of duties; database guarantees; mutation check |
+| BR-15 (frozen lines, whole quantities, cost > 0, one line per product) | DTOs, trigger `purchase_items_locked`, CHECKs | › creating; editing; database guarantees |
+| FR-ADM-01 (branch isolation) | `BranchAccessService`, `@BranchScoped` | › reading and branch isolation |
+| BR-14 (receiving SoD) | **Module 5** (data provided: createdBy/approvedBy) | › Module 5 hand-off |

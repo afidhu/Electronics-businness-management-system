@@ -44,6 +44,18 @@ export enum ErrorCode {
   BRAND_IN_USE = 'BRAND_IN_USE',
   /** Attempt to change sku, trackingMode or the identifier policy (D9). */
   IMMUTABLE_FIELD = 'IMMUTABLE_FIELD',
+
+  // Module 4 — procurement
+  /** Action not allowed in the order's current status (incl. lost races). */
+  INVALID_STATUS_TRANSITION = 'INVALID_STATUS_TRANSITION',
+  /** Creator or submitter tried to approve/reject their own order (any role). */
+  SELF_APPROVAL_FORBIDDEN = 'SELF_APPROVAL_FORBIDDEN',
+  /** Supplier deactivation blocked while open purchase orders exist. */
+  SUPPLIER_IN_USE = 'SUPPLIER_IN_USE',
+  /** Edit attempted on a purchase order that is not DRAFT. */
+  PURCHASE_NOT_EDITABLE = 'PURCHASE_NOT_EDITABLE',
+  /** Same product on more than one line of an order. */
+  DUPLICATE_PRODUCT_LINE = 'DUPLICATE_PRODUCT_LINE',
 }
 
 /** Fallback code for a bare HTTP status (used when no explicit code is given). */

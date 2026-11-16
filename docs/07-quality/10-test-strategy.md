@@ -74,3 +74,24 @@ Do not deploy a release if critical tests fail, migrations are unreviewed, produ
   - audit visibility (D13); `db:seed:demo` guard and idempotency (D15)
 - **Mutation check:** removing the price-permission check failed 4 tests, removing cost masking 3, removing the category/brand checks 3. The code was restored afterwards.
 - **Stability:** one intermittent failure was traced to a test asserting the position of equal-named rows (order among equal names follows a random UUID). The test was fixed to assert membership; the suite then passed 5/5 consecutive runs.
+
+## 10.8 Module 4 evidence (procurement)
+- **Totals after Module 4:** **172 unit** and **230 e2e** tests, all passing (Modules 1–4).
+- **Unit (21 new, `procurement-rules.spec.ts`):** every action × status transition; separation of duties (creator, submitter, earlier-cycle submitter); exact decimal line maths and Decimal(14,2) overflow; duplicate lines; PO reference format and range; TIN; invariants (every `procurement:read` holder has `catalogue:cost_read`; approvers are exactly MANAGER and SYSTEM_ADMIN).
+- **E2E `procurement.e2e-spec.ts` (69):**
+  - suppliers: normalisation, case-insensitive name and TIN uniqueness, validation (incl. rejected bank fields), every role read/write
+  - creating: per-branch/year numbering, 5 concurrent creates → distinct consecutive numbers, branch refusal, 10 invalid-order cases (incl. client `subtotal`, unit cost 0, fractional quantity, overflow, past or impossible date, duplicate lines), inactive or unknown references
+  - branch isolation for reading and acting; cross-branch refusals proven to change **nothing**
+  - draft editing by another officer (creator kept, line changes audited); DRAFT-only edits
+  - **separation of duties:** an admin who created; an admin who submitted; a creator promoted to MANAGER; an earlier-cycle submitter after reject → reopen → resubmit; blocked attempts audited; wrong-branch approver
+  - reject reasons, reopen history, re-check of references at submission, illegal transitions (409)
+  - cancellation rules (P5), including approved-and-partly-received → 409
+  - three-way approve/reject/approve race → exactly one winner
+  - supplier deactivation blocked while open orders exist
+  - database guarantees on direct SQL: SoD CHECKs, status consistency, line lock, immutability, arithmetic, and the Module 5 `quantity_received` hook
+  - audit visibility per branch and role; the Module 5 hand-off listing; `awaitingMyApproval`
+- **Mutation check:**
+  - removing the service separation-of-duties check failed 4 tests, and the **database CHECK still refused the self-approval** (transaction rolled back)
+  - removing the cancel permission rule failed 2 tests
+  - removing the branch check on actions **initially went undetected**: the tests asserted only the HTTP status, and the final read masked the committed change. The tests were strengthened to assert that a refused action changes nothing, after which this mutant failed 2 tests. All code was restored.
+- **Stability:** 3/3 consecutive runs green.

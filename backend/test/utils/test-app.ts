@@ -74,7 +74,7 @@ export async function createTestApp(
 export async function resetDatabase(prisma: PrismaService): Promise<void> {
   assertTestDatabase(process.env.DATABASE_URL); // belt and braces
   await prisma.$executeRawUnsafe(
-    'TRUNCATE TABLE "products", "categories", "brands", "audit_logs", "refresh_tokens", "user_branches", "users", "branches" CASCADE',
+    'TRUNCATE TABLE "purchase_items", "purchases", "suppliers", "document_sequences", "products", "categories", "brands", "audit_logs", "refresh_tokens", "user_branches", "users", "branches" CASCADE',
   );
   await seedRbac(prisma);
 }
