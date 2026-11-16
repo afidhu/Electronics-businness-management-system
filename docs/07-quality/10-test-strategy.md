@@ -222,3 +222,27 @@ Do not deploy a release if critical tests fail, migrations are unreviewed, produ
   - cost masking: 2 failed
   - **Survived by design:** removing the `IN_STOCK` guard on the device update. The partial UNIQUE index on `sale_items.product_unit_id` still rejects the second sale, the losing checkout rolls back completely, and the API returns the same 409 `UNIT_NOT_AVAILABLE`. This confirms the database backstop works independently.
 - **Stability:** the new suite passed 3/3 consecutive runs (including the concurrency tests).
+
+## 10.13 Frontend MVP evidence (16 Nov 2026)
+- **Approach:** no new dependencies (the npm registry was unreachable from the build machine).
+  - Unit and render tests compile with Vite's SSR build and run on Node's built-in test runner, rendering with `react-dom/server`.
+  - Browser tests drive the installed Google Chrome over the DevTools protocol against a backend on the **test** database (`frontend/e2e/README.md`).
+- **Unit/render (36):**
+  - **API client:** token in memory only (nothing in web storage); Bearer header; anti-CSRF header and same-origin credentials on refresh.
+  - **Refresh:** a 401 triggers one refresh and one retry. **Six concurrent 401s share one refresh call.** Concurrent explicit refreshes are shared too.
+  - **Session end and failures:** an ended session signs out with no refresh loop; a network error during refresh keeps the session; logout works offline; error envelopes and network errors are mapped correctly.
+  - **Money and cart:** money display (exact decimal strings, change and remaining amount in integer cents); the cart never sends a price, total, tax or cost field.
+  - **Idempotency keys:** reused for the same payload (any field order) and across a reload; new for a changed payload; cleared after success.
+  - **Role navigation and route guards:** all 7 roles, using the seeded RBAC permissions; branch picker and nav rendering.
+- **Browser end-to-end (53 checks, real backend):**
+  - the full purchase → receive (serials, dual IMEIs) → search → device → quote → split payment → checkout → receipt (screen and print) → history → summary → VAT workflow;
+  - reload restores the session with exactly one refresh; a simulated 401 is refreshed once and retried;
+  - role navigation and deep-link refusals for cashier and manager;
+  - insufficient stock disables checkout;
+  - **a lost checkout response followed by a retry creates no duplicate (same idempotency key on both attempts)**, and a triple-click creates one sale;
+  - no cost or profit shown to cashiers;
+  - layouts at 1440, 820 and 390 px (sidebar collapses; no horizontal scroll).
+- **Defects found and fixed:**
+  - The purchase API did not return line ids, so no API client could call receiving. Fixed by exposing `id`, `identifierType` and `identifiersPerUnit` (commit `5d358a1`, with backend tests).
+  - The browser run also confirmed that the CSRF origin check refuses cookie refresh and logout from an origin that is not configured; the test backend is started with the e2e origin allowed.
+

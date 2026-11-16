@@ -214,6 +214,13 @@ export function SummaryPage() {
             <div className="card">
               <h2>By payment method</h2>
               <table className="table compact">
+                <thead>
+                  <tr>
+                    <th>Method</th>
+                    <th className="num">Payments</th>
+                    <th className="num">Amount</th>
+                  </tr>
+                </thead>
                 <tbody>
                   {data.byPaymentMethod.map((m) => (
                     <tr key={m.method}>
@@ -231,6 +238,13 @@ export function SummaryPage() {
                 <Empty>No sales on this day.</Empty>
               ) : (
                 <table className="table compact">
+                  <thead>
+                    <tr>
+                      <th>Cashier</th>
+                      <th className="num">Sales</th>
+                      <th className="num">Total</th>
+                    </tr>
+                  </thead>
                   <tbody>
                     {data.byCashier.map((c) => (
                       <tr key={c.cashier.id}>

@@ -6,7 +6,7 @@ Independent prototype for practical software-engineering demonstration and inter
 ```
 .
 ├── backend/    NestJS 12 + Prisma 7 + PostgreSQL REST API (/api/v1)
-├── frontend/   React + TypeScript + Vite SPA (scaffold; not started yet)
+├── frontend/   React + TypeScript + Vite SPA (MVP: POS, receiving, sales, VAT; see frontend/README.md)
 ├── docs/       Requirements, design, ADRs, API contract, data dictionary, ops
 ├── .nvmrc      Node.js 24 LTS (run `nvm use`)
 └── .gitignore  Secrets, dependencies, build output and generated code are excluded

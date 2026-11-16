@@ -3,7 +3,7 @@ import type { SaleDetail } from '../api/types.ts'
 import { api } from '../app/api.ts'
 import { Alert, ErrorAlert, Spinner } from '../components/ui.tsx'
 import { METHOD_LABELS } from '../lib/format.ts'
-import { formatMoney } from '../lib/money.ts'
+import { formatMoney, groupDigits } from '../lib/money.ts'
 
 /** Receipt from GET /sales/:id/receipt (never contains costs); printed by the browser. */
 export function ReceiptPage({ saleId, isNew }: { saleId: string; isNew: boolean }) {
@@ -20,6 +20,7 @@ export function ReceiptPage({ saleId, isNew }: { saleId: string; isNew: boolean 
   if (error) return <ErrorAlert error={error} />
   if (!sale) return <Spinner />
   const m = (v: string) => formatMoney(v, sale.currency)
+  const n = (v: string) => groupDigits(v) // line amounts: currency stated once
 
   return (
     <>
@@ -63,6 +64,8 @@ export function ReceiptPage({ saleId, isNew }: { saleId: string; isNew: boolean 
           <dd>{sale.businessDateTime}</dd>
           <dt>Cashier</dt>
           <dd>{sale.cashier.fullName}</dd>
+          <dt>Currency</dt>
+          <dd>{sale.currency}</dd>
           {sale.customer && (
             <>
               <dt>Customer</dt>
@@ -92,8 +95,8 @@ export function ReceiptPage({ saleId, isNew }: { saleId: string; isNew: boolean 
                   ))}
                 </td>
                 <td className="num">{l.quantity}</td>
-                <td className="num">{m(l.unitPrice)}</td>
-                <td className="num">{m(l.lineTotal)}</td>
+                <td className="num">{n(l.unitPrice)}</td>
+                <td className="num">{n(l.lineTotal)}</td>
               </tr>
             ))}
           </tbody>

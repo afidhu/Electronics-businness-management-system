@@ -124,6 +124,7 @@ export function ReceiveOrderPage({ purchaseId }: { purchaseId: string }) {
   const openItems = useMemo(() => order?.items.filter((i) => outstanding(i) > 0) ?? [], [order])
 
   function setQuantity(item: PurchaseItem, value: string) {
+    setFormError(null)
     setDrafts((prev) => {
       const n = Math.max(0, Math.min(outstanding(item), Number.parseInt(value || '0', 10) || 0))
       const cur = prev[item.id]
@@ -136,6 +137,7 @@ export function ReceiveOrderPage({ purchaseId }: { purchaseId: string }) {
   }
 
   function setIdentifier(itemId: string, unit: number, idx: number, value: string) {
+    setFormError(null)
     setDrafts((prev) => {
       const units = prev[itemId].units.map((u, i) => (i === unit ? u.map((v, j) => (j === idx ? value : v)) : u))
       return { ...prev, [itemId]: { ...prev[itemId], units } }

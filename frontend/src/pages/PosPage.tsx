@@ -8,7 +8,7 @@ import { METHOD_LABELS, errorText } from '../lib/format.ts'
 import { useDebounced } from '../lib/hooks.ts'
 import { addQuantity, addUnit, removeLine, setQuantity, toRequestItems, type CartLine, type CartProduct } from '../lib/cart.ts'
 import { IdempotencyKeys } from '../lib/idempotency.ts'
-import { isMoney, paymentProgress } from '../lib/money.ts'
+import { formatMoney, isMoney, paymentProgress } from '../lib/money.ts'
 import { navigate } from '../lib/router.ts'
 
 const keys = new IdempotencyKeys()
@@ -234,7 +234,7 @@ export function PosPage() {
       <div className="pos">
         {/* ------------------------------------------------ products */}
         <section className="card pos-products" aria-label="Products">
-          <form onSubmit={onScan} className="scan-row">
+          <form onSubmit={onScan} className="scan-row" data-testid="pos-scan-form">
             <input
               value={scan}
               onChange={(e) => setScan(e.target.value)}
@@ -479,7 +479,7 @@ export function PosPage() {
                 onClick={() => void checkout()}
                 data-testid="checkout-submit"
               >
-                {submitting ? 'Completing sale…' : quote ? `Complete sale · ${quote.currency} ${quote.total}` : 'Complete sale'}
+                {submitting ? 'Completing sale…' : quote ? `Complete sale · ${formatMoney(quote.total, quote.currency)}` : 'Complete sale'}
               </button>
             )}
           </div>
