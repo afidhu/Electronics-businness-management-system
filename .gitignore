@@ -1,0 +1,39 @@
+# ElectroCore EBMS — repository-wide ignore rules.
+# backend/.gitignore and frontend/.gitignore add package-specific rules.
+
+# --- Secrets & environment (never commit) ---
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# --- Dependencies ---
+node_modules/
+
+# --- Build output & caches ---
+dist/
+build/
+coverage/
+*.tsbuildinfo
+.vite/
+.eslintcache
+
+# --- Generated code ---
+backend/src/generated/
+
+# --- Logs & runtime ---
+*.log
+logs/
+pids/
+*.pid
+
+# --- Editors / OS / office lock files ---
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
+*.swp
+.~lock.*#
+~$*
