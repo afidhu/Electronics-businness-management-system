@@ -14,6 +14,7 @@ erDiagram
   PRODUCT ||--o{ STOCK_BALANCE : summarized
   BRANCH ||--o{ STOCK_BALANCE : holds
   SUPPLIER ||--o{ PURCHASE : receives
+  USER ||--o{ PURCHASE : created_submitted_approved_by
   BRANCH ||--o{ PURCHASE : destination
   PURCHASE ||--|{ PURCHASE_ITEM : contains
   PRODUCT ||--o{ PURCHASE_ITEM : ordered
@@ -134,21 +135,48 @@ erDiagram
   SUPPLIER {
     uuid id PK
     string name
+    string name_key UK "case-insensitive"
+    string contact_person
     string phone
+    string email
+    string address
+    string tin UK "nullable; unique when set"
+    string notes
+    boolean is_active
   }
   PURCHASE {
     uuid id PK
+    string reference UK "PO-BRANCH-YYYY-NNNNNN"
     uuid supplier_id FK
     uuid branch_id FK
-    string status
-    string reference UK
+    enum status "DRAFT|SUBMITTED|APPROVED|REJECTED|PARTIALLY_RECEIVED|RECEIVED|CANCELLED"
+    string currency "TZS"
+    decimal subtotal "server-computed"
+    string supplier_reference
+    date expected_delivery_date
+    string notes
+    uuid created_by_id FK
+    uuid submitted_by_id FK
+    uuid approved_by_id FK "CHECK <> creator, submitter"
+    uuid rejected_by_id FK "CHECK <> creator, submitter"
+    string rejection_reason
+    uuid cancelled_by_id FK
+    string cancellation_reason
   }
   PURCHASE_ITEM {
     uuid id PK
     uuid purchase_id FK
-    uuid product_id FK
-    decimal quantity
-    decimal unit_cost
+    int line_number
+    uuid product_id FK "UK with purchase_id"
+    string product_name "snapshot"
+    int quantity_ordered "> 0"
+    int quantity_received "Module 5 only"
+    decimal unit_cost "> 0, tax-exclusive"
+    decimal line_total
+  }
+  DOCUMENT_SEQUENCE {
+    string scope PK "e.g. PO:DSM01:2026"
+    int last_value
   }
   GOODS_RECEIPT {
     uuid id PK

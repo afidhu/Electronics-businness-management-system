@@ -56,6 +56,17 @@
 - The creator of a purchase order cannot approve or reject it, whatever their role (403).
 - Approval and rejection record who acted, when, and the reason (for rejection) in the audit log.
 - Approval is limited to purchase orders of branches within the approver's scope.
+- *(Module 4)* The submitter is also excluded; a blocked self-approval attempt is itself audited.
+- *(Module 4)* A rejected order can be reopened as a draft, revised and resubmitted; its history is preserved.
+
+**US-15 — Manage suppliers:** As a procurement officer, I want to maintain supplier records so that purchase orders reference correct suppliers. *(Module 4)*
+- Supplier names are unique regardless of case; a TIN, when given, is unique.
+- A supplier with open purchase orders cannot be deactivated (409); inactive suppliers cannot be used on new orders.
+
+**US-16 — Create and submit purchase orders:** As a procurement officer, I want to prepare purchase orders for my branches and submit them for approval. *(Module 4)*
+- One line per product, whole-number quantities, unit cost > 0 (TZS, tax-exclusive); totals calculated by the system.
+- Only drafts can be edited; submitted lines are frozen.
+- Orders can be cancelled with a reason (approved orders only by an approver, and only if nothing has been received).
 
 ## Inventory receiving
 **US-04 — Receive stock:** As an inventory officer, I want to receive goods against a purchase.
@@ -63,6 +74,7 @@
 - Serialized products require a unique identifier for each physical unit.
 - Receiving creates movement entries and updates stock in one transaction.
 - Duplicate receiving is prevented.
+- *(BR-14, Module 5)* The user who created or approved the purchase order cannot receive it (partially or finally); another user with `inventory:receive` must. The receiver and all details are audited.
 
 **US-05 — View branch stock:** As a manager, I want to view stock by branch.
 - Results show on-hand, reserved and available quantity.

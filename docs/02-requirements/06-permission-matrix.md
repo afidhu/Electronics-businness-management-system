@@ -41,12 +41,12 @@ Branch-scoped roles must have at least one active branch. `SYSTEM_ADMIN` must ha
 | `catalogue:cost_read` | See product cost prices in API responses (Module 3, D4) | ✓ | ✓ | ✓ | ✓ | | | ✓ |
 | `inventory:read` | View stock, units, movements *(future)* | ✓ | ✓ | ✓ | ✓ | ✓ | | ✓ |
 | `inventory:write` | Maintain serialized unit records *(future)* | ✓ | | ✓ | | | | |
-| `inventory:receive` | Receive goods against POs *(future)* | ✓ | | ✓ | ✓ | | | |
+| `inventory:receive` | Receive goods against POs *(Module 5; never by the PO's creator or approver, BR-14)* | ✓ | | ✓ | ✓ | | | |
 | `inventory:adjust` | Stock adjustments with reason *(future)* | ✓ | ✓ | ✓ | | | | |
 | `inventory:transfer` | Stock transfers *(future)* | ✓ | ✓ | ✓ | | | | |
-| `procurement:read` | View suppliers & POs *(future)* | ✓ | ✓ | ✓ | ✓ | | | ✓ |
-| `procurement:write` | Maintain suppliers & POs *(future)* | ✓ | | | ✓ | | | |
-| `procurement:approve` | Submit/approve/cancel POs *(future)* | ✓ | ✓ | | | | | |
+| `procurement:read` | View suppliers & POs (branch-scoped) | ✓ | ✓ | ✓ | ✓ | | | ✓ |
+| `procurement:write` | Maintain suppliers; create/edit/submit/reopen/cancel POs before approval | ✓ | | | ✓ | | | |
+| `procurement:approve` | Approve/reject POs (never own: creator or submitter); cancel approved POs | ✓ | ✓ | | | | | |
 | `customers:read` | View customers *(future)* | ✓ | ✓ | | | ✓ | ✓ | ✓ |
 | `customers:write` | Maintain customers *(future)* | ✓ | | | | ✓ | | |
 | `sales:read` | View sales & receipts *(future)* | ✓ | ✓ | | | ✓ | | ✓ |
@@ -61,7 +61,7 @@ Branch-scoped roles must have at least one active branch. `SYSTEM_ADMIN` must ha
 | `reports:inventory` | Inventory reports *(future)* | ✓ | ✓ | | | | | ✓ |
 
 ## 6.4 Approved business decisions (16 Nov 2026)
-1. **Purchase approval and separation of duties:** MANAGER and SYSTEM_ADMIN hold `procurement:approve`. PROCUREMENT_OFFICER creates purchase orders and never approves them. **The creator of a purchase order can never approve (or reject) it, whatever their role**, including SYSTEM_ADMIN and MANAGER (decided 16 Nov 2026, ADR-023). Approval and rejection are audited. *To be implemented in Module 4 (Procurement).*
+1. **Purchase approval and separation of duties:** MANAGER and SYSTEM_ADMIN hold `procurement:approve`. PROCUREMENT_OFFICER creates purchase orders and never approves them. **The creator of a purchase order can never approve (or reject) it, whatever their role**, including SYSTEM_ADMIN and MANAGER (decided 16 Nov 2026, ADR-023). Approval and rejection are audited. *Implemented in Module 4 (Procurement); see §6.4b.*
 2. **Discounts and returns:** only MANAGER and SYSTEM_ADMIN hold `sales:discount` and `sales:return`. Detailed discount limits and return rules belong to the sales and returns modules.
 3. **Staff list:** SYSTEM_ADMIN manages all users (`users:write`). MANAGER has `users:read` and sees only staff assigned to at least one of their branches. Managers cannot create, update, deactivate or reset passwords.
 4. **Audit visibility:** SYSTEM_ADMIN sees all audit events. MANAGER and AUDITOR see only events tied to their authorised branches. Global events with no branch (logins, logouts, token reuse, password changes) are visible only to SYSTEM_ADMIN.
@@ -71,6 +71,13 @@ Branch-scoped roles must have at least one active branch. `SYSTEM_ADMIN` must ha
 - **D4 (cost visibility):** CASHIER and TECHNICIAN never receive `costPrice`. The API omits the field unless the caller holds `catalogue:cost_read`. That permission exists only because checks use permission keys, never role names (ADR-016). It is granted to exactly the roles that may see cost and gives no other access.
 - **D5 (price changes):** `catalogue:price` (MANAGER, SYSTEM_ADMIN) is required to change `costPrice`/`sellingPrice` of an existing product. INVENTORY_OFFICER sets initial prices when creating a product (`catalogue:write`) but cannot change them later. A PATCH containing both ordinary and price fields needs both permissions; otherwise the whole request is rejected (403) and nothing changes. Every price change is audited with old and new values per field, the user and the timestamp.
 - **D13 (audit visibility):** catalogue events (Category, Brand, Product) are organisation-wide and visible to all `audit:read` holders (SYSTEM_ADMIN, MANAGER, AUDITOR). Global login and identity events stay SYSTEM_ADMIN-only.
+
+## 6.4b Module 4 procurement decisions (approved 16 Nov 2026)
+- **No new permissions and no grant changes.** Submitting needs `procurement:write` (the API contract previously said `procurement:approve`, which was corrected).
+- **Separation of duties (P3):** the creator and the submitter of an order can never approve or reject it, whatever their role, including SYSTEM_ADMIN. Enforced in the service and by database CHECK constraints.
+- **Receiving (P15, Module 5):** the creator and the approver of an order can never receive it. PROCUREMENT_OFFICER keeps `inventory:receive`.
+- **Branch scope:** purchase orders are visible and actionable only within the user's branches (SYSTEM_ADMIN: all). Suppliers are organisation-wide and their audit events are visible to every audit reader (P13).
+- **Invariant:** every holder of `procurement:read` also holds `catalogue:cost_read`, because order lines show unit costs.
 
 ## 6.5 Enforcement summary
 | Layer | Mechanism |

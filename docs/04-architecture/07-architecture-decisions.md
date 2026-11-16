@@ -197,7 +197,7 @@ The project owner approved the roles, branch access and authentication strategy 
 - The initial administrator is `admin@gmail.com` (SYSTEM_ADMIN), created by `npm run db:seed` with a randomly generated temporary password supplied through `SEED_ADMIN_PASSWORD`. That password is never stored in Git, logs or documentation.
 
 ## ADR-023: Separation of duties for purchase-order approval
-**Status:** Accepted (16 Nov 2026). Implementation is scheduled for **Module 4 (Procurement)**; corrected from "Module 3" by decision D1 (Module 3 is the Product Catalogue).  
+**Status:** Accepted (16 Nov 2026). Implemented in **Module 4 (Procurement)**; corrected from "Module 3" by decision D1. Extended by P3: the **submitter** is excluded as well as the creator (ADR-027).  
 **Decision:**
 - Procurement officers create purchase orders. Only holders of `procurement:approve` (MANAGER, SYSTEM_ADMIN) may approve or reject them, and only for branches within their scope (ADR-019).
 - **The creator of a purchase order can never approve or reject it, regardless of role.** This includes SYSTEM_ADMIN and MANAGER, even though SYSTEM_ADMIN holds every permission. The check compares the PO's `createdBy` with the acting user inside the approval transaction; on mismatch the request fails with 403.
@@ -234,3 +234,20 @@ The project owner approved the roles, branch access and authentication strategy 
 ## ADR-026: Organisation-wide audit events visible to audit readers
 **Status:** Accepted (16 Nov 2026). Amends ADR-020 and doc 06 §6.4 item 4 (decision D13).  
 **Decision:** Users without `branches:access_all` see audit events of their branches **plus** organisation-wide catalogue events (`entityType` Category, Brand or Product, which have no branch). Identity and authentication events with no branch (logins, logouts, token reuse, password changes, user administration without a single branch) remain visible only to SYSTEM_ADMIN.
+
+## ADR-027: Procurement design
+**Status:** Accepted (16 Nov 2026). Proposal: `docs/proposals/module-4-procurement.md` (P1–P16).  
+**Decision:**
+- **Lifecycle:** `DRAFT → SUBMITTED → APPROVED | REJECTED`; `REJECTED → DRAFT` (reopen); cancellation with a reason from DRAFT, SUBMITTED or REJECTED (`procurement:write`) and from APPROVED when nothing has been received (`procurement:approve`). PARTIALLY_RECEIVED and RECEIVED are reached only by Module 5.
+- Every transition is a conditional status update inside a row-locked transaction; concurrent conflicting actions resolve to one success and one 409.
+- **Separation of duties** in three layers: permission (`procurement:approve`), service (actor ≠ creator and ≠ submitter, including SYSTEM_ADMIN; blocked attempts audited) and database (CHECK constraints on approver and rejecter).
+- **Lines** are frozen outside DRAFT by a trigger, except `quantity_received` while APPROVED or PARTIALLY_RECEIVED (the Module 5 hook).
+- **Totals** are computed by the server in Decimal; quantities are whole numbers; unit cost is > 0, TZS and tax-exclusive; one line per product; a product-name snapshot is kept per line.
+- **Numbering:** `PO-{BRANCHCODE}-{YYYY}-{NNNNNN}` from a `document_sequences` row per branch and year, incremented atomically in the same transaction. Gaps from rolled-back transactions are acceptable.
+- **Suppliers** are organisation-wide (case-insensitive unique name, TIN unique when set). Deactivation is blocked while open orders exist. Supplier audit events are organisation-wide (ADR-026 extended to `Supplier`).
+- Purchase audit events carry the order's branch (branch-scoped visibility).
+- No new permissions; product cost prices are not changed (P14, decided in Module 5).
+
+## ADR-028: Receiving separation of duties (requirement for Module 5)
+**Status:** Accepted (16 Nov 2026, decision P15 Option B). **To be implemented and tested in Module 5.**  
+**Decision:** A user can never receive goods, partially or finally, against a purchase order they **created** or **approved**. Receiving must be performed by another user holding `inventory:receive`, and the receiving user and all receiving details are audited. `inventory:receive` stays with PROCUREMENT_OFFICER. Module 4 provides `createdById` and `approvedById` on every order so the check can be enforced in the backend (and, ideally, by a database constraint on the goods-receipt table).

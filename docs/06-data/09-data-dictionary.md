@@ -16,9 +16,10 @@ This is a logical model, not a final Prisma schema. Field types, nullability and
 | Product *(Module 3)* | id, sku, name, description, categoryId, brandId, trackingMode, identifierType, identifiersPerUnit, costPrice, sellingPrice, reorderLevel, specifications, isActive, createdById, updatedById | Product model (SKU). SKU unique, upper-case, immutable. Tracking mode and identifier policy immutable. Prices `Decimal(14,2)` TZS, **tax-exclusive**, organisation-wide; cost hidden from roles without `catalogue:cost_read`. Variants are separate SKUs. |
 | ProductUnit *(Module 5)* | id, productId, branchId, status | One physical serialized device, created only at receiving; opening stock via audited adjustment |
 | UnitIdentifier *(Module 5)* | id, productUnitId, type, value, isPrimary | IMEI/serial identifiers. Value normalised and **unique across the whole organisation** (D3). Count per unit = product's `identifiersPerUnit` |
-| Supplier | id, name, phone, email, address | Supplier master record |
-| Purchase | id, reference, supplierId, branchId, status, createdBy | Purchase order lifecycle |
-| PurchaseItem | id, purchaseId, productId, orderedQty, receivedQty, unitCost | Products ordered |
+| Supplier *(Module 4)* | id, name, nameKey, contactPerson, phone, email, address, tin, notes, isActive | Organisation-wide. Name is case-insensitive unique; TIN unique when set. No payment terms or bank details. Deactivation blocked while open orders exist. |
+| Purchase *(Module 4)* | id, reference, supplierId, branchId, status, currency, subtotal, supplierReference, expectedDeliveryDate, notes, createdById/At, updatedById/At, submittedById/At, approvedById/At, approvalNote, rejectedById/At, rejectionReason, cancelledById/At, cancellationReason | Purchase order. Reference `PO-{BRANCH}-{YYYY}-{NNNNNN}`. Separation of duties by DB CHECK: approver and rejecter ≠ creator and submitter. Status consistency enforced. |
+| PurchaseItem *(Module 4)* | id, purchaseId, lineNumber, productId, productName, quantityOrdered, quantityReceived, unitCost, lineTotal | One line per product. Whole-number quantities. unitCost > 0, TZS, tax-exclusive. Lines editable only while DRAFT (trigger); `quantityReceived` written only by Module 5. |
+| DocumentSequence *(Module 4)* | scope, lastValue | Atomic per-scope counters (PO numbers per branch and year; reusable) |
 | GoodsReceipt | id, reference, purchaseId, receivedBy, receivedAt | Goods receiving event; reference unique |
 | StockBalance | id, productId, branchId, onHand, reserved | Query-optimized balance; unique product+branch |
 | StockMovement | id, productId, branchId, movementType, quantityDelta, referenceType, referenceId, actorId | Append-only inventory ledger |
@@ -36,7 +37,7 @@ This is a logical model, not a final Prisma schema. Field types, nullability and
 - Unique: normalized user email, branch code, product SKU, purchase reference, receipt number.
 - Unique serial/IMEI identifier according to the organisation's identifier policy.
 - Unique StockBalance `(productId, branchId)`.
-- Positive purchase/sale quantities.
+- Positive purchase/sale quantities. **Purchase quantities are whole numbers (P7, resolves the earlier decimal-vs-integer question for purchasing).**
 - Non-negative prices and payment amounts.
 - Decimal/numeric types for money and quantities; never JavaScript floating point as the source of truth.
 - Foreign keys for all relationships.

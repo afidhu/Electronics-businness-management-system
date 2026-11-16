@@ -1,11 +1,17 @@
 stateDiagram-v2
+  %% Purchase order lifecycle (Module 4, ADR-027). Receiving transitions belong to Module 5.
   [*] --> DRAFT
-  DRAFT --> SUBMITTED
-  SUBMITTED --> PARTIALLY_RECEIVED
-  SUBMITTED --> RECEIVED
-  PARTIALLY_RECEIVED --> RECEIVED
-  DRAFT --> CANCELLED
-  SUBMITTED --> CANCELLED
+  DRAFT --> SUBMITTED: submit (procurement:write)
+  SUBMITTED --> APPROVED: approve (procurement:approve, not creator/submitter)
+  SUBMITTED --> REJECTED: reject + reason (procurement:approve, not creator/submitter)
+  REJECTED --> DRAFT: reopen (procurement:write)
+  APPROVED --> PARTIALLY_RECEIVED: Module 5 receive (not creator/approver)
+  APPROVED --> RECEIVED: Module 5 receive (not creator/approver)
+  PARTIALLY_RECEIVED --> RECEIVED: Module 5 receive
+  DRAFT --> CANCELLED: cancel + reason (procurement:write)
+  SUBMITTED --> CANCELLED: cancel + reason (procurement:write)
+  REJECTED --> CANCELLED: cancel + reason (procurement:write)
+  APPROVED --> CANCELLED: cancel + reason (procurement:approve, nothing received)
 
   state "Serialized unit lifecycle" as Unit {
     [*] --> IN_STOCK

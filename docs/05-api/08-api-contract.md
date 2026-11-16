@@ -63,6 +63,11 @@ Every response carries an `X-Request-Id` header, which is also returned as `requ
 | `REFERENCE_INACTIVE` | 400 | Selected category/brand is inactive |
 | `CATEGORY_IN_USE` / `BRAND_IN_USE` | 409 | Deactivation blocked: active products depend on it |
 | `IMMUTABLE_FIELD` | 400 | Attempt to change sku, trackingMode, identifierType or identifiersPerUnit |
+| `INVALID_STATUS_TRANSITION` | 409 | Action not allowed in the order's current status (incl. lost races) |
+| `SELF_APPROVAL_FORBIDDEN` | 403 | Creator or submitter tried to approve/reject (any role) |
+| `SUPPLIER_IN_USE` | 409 | Supplier deactivation blocked: open purchase orders exist |
+| `PURCHASE_NOT_EDITABLE` | 409 | Edit attempted on an order that is not DRAFT |
+| `DUPLICATE_PRODUCT_LINE` | 400 | The same product appears on more than one line |
 | `ADMIN_LOCKOUT_PREVENTED` | 409 | Would deactivate/demote yourself or remove the last active administrator |
 
 Business modules add specific codes (e.g. `INSUFFICIENT_STOCK`) as they are implemented.
@@ -98,10 +103,16 @@ OpenAPI UI at `/api/docs` and JSON at `/api/docs-json`. Enabled by default outsi
 | GET | `/inventory/movements` | Stock ledger | inventory:read |
 | POST | `/inventory/adjustments` | Approved adjustment | inventory:adjust |
 | POST | `/inventory/transfers` | Create transfer | inventory:transfer |
-| GET/POST | `/suppliers` | Supplier list/create | procurement:read/write |
-| GET/POST | `/purchases` | Purchase list/create | procurement:read/write |
-| POST | `/purchases/:id/submit` | Submit purchase | procurement:approve |
-| POST | `/purchases/:id/receive` | Receive goods | inventory:receive |
+| GET/POST | `/suppliers` | Supplier list (`q`, `isActive`)/create. *Module 4* | procurement:read/write |
+| GET/PATCH | `/suppliers/:id` | View/update or deactivate (409 `SUPPLIER_IN_USE`). *Module 4* | procurement:read/write |
+| GET/POST | `/purchases` | List (branch-scoped; `status`, `branchId`, `supplierId`, `q`, `createdFrom`, `createdTo`, `awaitingMyApproval`)/create draft. *Module 4* | procurement:read/write |
+| GET/PATCH | `/purchases/:id` | View/edit (DRAFT only). *Module 4* | procurement:read/write |
+| POST | `/purchases/:id/submit` | Submit for approval. *Module 4*. **Corrected: was procurement:approve** | procurement:write |
+| POST | `/purchases/:id/approve` | Approve `{ note? }`; creator/submitter forbidden. *Module 4* | procurement:approve |
+| POST | `/purchases/:id/reject` | Reject `{ reason }`; creator/submitter forbidden. *Module 4* | procurement:approve |
+| POST | `/purchases/:id/reopen` | REJECTED → DRAFT. *Module 4* | procurement:write |
+| POST | `/purchases/:id/cancel` | Cancel `{ reason }`; before approval: procurement:write; APPROVED: procurement:approve and nothing received. *Module 4* | procurement:write / approve |
+| POST | `/purchases/:id/receive` | Receive goods. **Module 5**; a user who created or approved the order cannot receive it (BR-14) | inventory:receive |
 | GET/POST | `/customers` | Customer list/create | customers:read/write |
 | POST | `/sales` | Checkout | sales:create |
 | GET | `/sales/:id` | Sale detail/receipt | sales:read |
@@ -173,3 +184,8 @@ Login is limited to 5 requests per IP per minute (429 `RATE_LIMITED` with `Retry
 - `costPrice` is **omitted** from every product response unless the caller holds `catalogue:cost_read` (not CASHIER or TECHNICIAN).
 - `sku` is normalised to upper case; it, `trackingMode`, `identifierType` and `identifiersPerUnit` cannot be changed (400 `IMMUTABLE_FIELD`).
 - `PATCH /products/:id` is checked field by field: `costPrice`/`sellingPrice` need `catalogue:price`, every other field needs `catalogue:write`. The whole request fails with 403 if any part is not permitted.
+
+## Procurement (Module 4; proposal `docs/proposals/module-4-procurement.md`)
+- Order money: TZS decimal strings, tax-exclusive. `subtotal` and `lineTotal` are always calculated by the server; client-sent totals are rejected.
+- Separation of duties: the creator and the submitter of an order can never approve or reject it (403 `SELF_APPROVAL_FORBIDDEN`), including SYSTEM_ADMIN. It is also enforced by a database CHECK.
+- **Module 5 hand-off:** `GET /purchases?status=APPROVED&branchId=…` lists orders ready for receiving. Each order exposes `createdBy` and `approvedBy`, so that Module 5 can block receiving by either (BR-14), plus `quantityOrdered` and `quantityReceived` per line.

@@ -11,9 +11,9 @@ class Product { +id: UUID +sku: string +name: string +trackingMode: TrackingMode
 class ProductUnit { +id: UUID +serialNumber: string +status: UnitStatus }
 class StockBalance { +quantity: Decimal +reservedQuantity: Decimal }
 class StockMovement { +movementType: string +quantityDelta: Decimal +createdAt: DateTime }
-class Supplier { +id: UUID +name: string }
-class Purchase { +id: UUID +reference: string +status: PurchaseStatus }
-class PurchaseItem { +quantity: Decimal +unitCost: Decimal }
+class Supplier { +id: UUID +name: string +tin: string? +isActive: boolean }
+class Purchase { +id: UUID +reference: string +status: PurchaseStatus +subtotal: Decimal +createdBy: User +submittedBy: User? +approvedBy: User? +rejectedBy: User? }
+class PurchaseItem { +quantityOrdered: int +quantityReceived: int +unitCost: Decimal +lineTotal: Decimal }
 class Customer { +id: UUID +name: string +phone: string }
 class Sale { +id: UUID +receiptNumber: string +status: SaleStatus +total: Decimal }
 class SaleItem { +quantity: Decimal +unitPrice: Decimal }

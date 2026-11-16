@@ -37,7 +37,7 @@ Administrator, Manager, Inventory Officer, Procurement Officer, Cashier/Salesper
 - FR-PUR-02 (Must): Purchase order stores supplier, branch, reference, status, dates and lines.
 - FR-PUR-03 (Must): Goods are added to stock only through an authorized receiving action.
 - FR-PUR-04 (Must): Receiving creates ledger entries and stock updates atomically.
-- FR-PUR-05 (Should): Purchase states include DRAFT, SUBMITTED, PARTIALLY_RECEIVED, RECEIVED and CANCELLED.
+- FR-PUR-05 (Should): Purchase states include DRAFT, SUBMITTED, PARTIALLY_RECEIVED, RECEIVED and CANCELLED. *(16 Nov 2026: extended with APPROVED and REJECTED; see ADR-027.)*
 - FR-PUR-06 (Should): Supplier invoice and reference can be recorded.
 
 ### Inventory
@@ -80,6 +80,8 @@ Administrator, Manager, Inventory Officer, Procurement Officer, Cashier/Salesper
 ## 2.5 Business rules
 - BR-12 *(16 Nov 2026)*: Product selling prices are tax-exclusive; tax is calculated separately at sale time from configurable settings (ADR-012).
 - BR-13 *(16 Nov 2026)*: SKU and tracking mode cannot change after a product is created; a category or brand cannot be deactivated while active products use it.
+- BR-14 *(16 Nov 2026)*: A user can never receive (partially or finally) a purchase order they created or approved; receiving is performed by another user with `inventory:receive`, and the receiver and all receiving details are audited. *(Enforced in Module 5; ADR-028.)*
+- BR-15 *(16 Nov 2026)*: Purchase order lines are frozen once submitted; purchase quantities are whole numbers; unit costs are > 0, TZS and tax-exclusive; a product appears at most once per order.
 - BR-11 *(16 Nov 2026)*: Separation of duties: a purchase order cannot be approved or rejected by the user who created it, regardless of role. Approval and rejection are recorded in the audit log.
 - BR-01: Completed sale cannot make available stock negative.
 - BR-02: A serialized unit is uniquely identifiable and sold at most once.
@@ -139,6 +141,11 @@ Administrator, Manager, Inventory Officer, Procurement Officer, Cashier/Salesper
 | Product prices | **Tax-exclusive**, organisation-wide; initial prices by catalogue writers; changes only by MANAGER/SYSTEM_ADMIN (`catalogue:price`); every change audited old → new; selling below cost allowed but audited | ADR-025 |
 | Cost-price visibility | Never returned to CASHIER or TECHNICIAN (server-side) | doc 06 §6.4a |
 | Serialized identifiers | IMEI (15 digits + Luhn) or serial; 1–2 per unit; unique across the organisation after normalisation; units created only at receiving (Module 5) | ADR-025 |
+| Purchase lifecycle | DRAFT → SUBMITTED → APPROVED/REJECTED (reopen to DRAFT) → receiving (Module 5); cancellation with reason (before approval: procurement:write; approved and nothing received: procurement:approve) | ADR-027 |
+| PO numbering | `PO-{BRANCHCODE}-{YYYY}-{NNNNNN}`, independent per branch and year | ADR-027 |
+| Suppliers | Organisation-wide; case-insensitive unique name; TIN unique when set; no payment/bank data; deactivation blocked while open orders exist | ADR-027 |
+| Receiving separation of duties | Creator and approver of an order can never receive it | BR-14, ADR-028 |
+| Purchase requisitions; value-based approval limits | Deferred (not in MVP) | proposal M4 (P1, P10) |
 | Initial administrator | `admin@gmail.com` (SYSTEM_ADMIN), seeded with a random temporary password; change on first login | ops §12.8 |
 | Branch access | Admin all branches; others assigned (Cashier/Technician one); backend-enforced | ADR-019 |
 | Audit | Append-only audit log of sensitive actions | ADR-020 |
