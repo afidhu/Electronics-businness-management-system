@@ -78,6 +78,7 @@ model Branch {
   users          UserBranch[]
   goodsReceipts  GoodsReceipt[]
   productUnits   ProductUnit[]
+  sales          Sale[]
   stockBalances  StockBalance[]
   stockMovements StockMovement[]
   purchases      Purchase[]
@@ -115,6 +116,9 @@ model User {
   purchasesApproved  Purchase[]      @relation("PurchaseApprovedBy")
   purchasesRejected  Purchase[]      @relation("PurchaseRejectedBy")
   purchasesCancelled Purchase[]      @relation("PurchaseCancelledBy")
+  salesAsCashier     Sale[]          @relation("SaleCashier")
+  customersCreated   Customer[]      @relation("CustomerCreatedBy")
+  taxSettingsCreated TaxSetting[]    @relation("TaxSettingCreatedBy")
   goodsReceipts      GoodsReceipt[]
   stockMovements     StockMovement[]
 
@@ -273,6 +277,7 @@ model Product {
   stockBalances     StockBalance[]
   stockMovements    StockMovement[]
   valuation         InventoryValuation?
+  saleItems         SaleItem[]
   createdBy         User?               @relation("ProductCreatedBy", fields: [createdById], references: [id])
   updatedBy         User?               @relation("ProductUpdatedBy", fields: [updatedById], references: [id])
 
@@ -411,7 +416,7 @@ model DocumentSequence {
 // Stage 5.2 (adjustments, transfers, close short) is deferred: no tables yet.
 // ---------------------------------------------------------------------------
 
-/// Ledger movement types (full approved list; 5.1 writes PURCHASE_RECEIPT only).
+/// Ledger movement types (5.1 writes PURCHASE_RECEIPT; Module 6 writes SALE).
 enum MovementType {
   OPENING_BALANCE
   PURCHASE_RECEIPT
@@ -419,6 +424,8 @@ enum MovementType {
   ADJUSTMENT_DECREASE
   TRANSFER_OUT
   TRANSFER_IN
+  /// Module 6 (POS): stock leaves the branch through a completed sale.
+  SALE
 }
 
 /// Serialized unit lifecycle (FR-UNIT-02 + IN_TRANSIT, I11).
@@ -495,6 +502,7 @@ model ProductUnit {
   branch           Branch            @relation(fields: [branchId], references: [id])
   goodsReceiptItem GoodsReceiptItem? @relation(fields: [goodsReceiptItemId], references: [id])
   identifiers      UnitIdentifier[]
+  saleItem         SaleItem?
   movements        StockMovement[]
 
   @@index([productId, branchId, status])
@@ -570,4 +578,136 @@ model InventoryValuation {
   product Product @relation(fields: [productId], references: [id])
 
   @@map("inventory_valuations")
+}
+
+// ---------------------------------------------------------------------------
+// Module 6 — Point of Sale (ADR-031; docs/proposals/module-6-pos.md)
+// Sales, lines and payments are append-only. Returns/voids are deferred.
+// ---------------------------------------------------------------------------
+
+/// MVP sales are COMPLETED only (returns/voids deferred; BR-05).
+enum SaleStatus {
+  COMPLETED
+}
+
+enum PaymentMethod {
+  CASH
+  CARD
+  MOBILE_MONEY
+  BANK_TRANSFER
+}
+
+/// Organisation-wide VAT rate (S1, BR-20). One active row; changes add a row.
+model TaxSetting {
+  id          String   @id @default(uuid()) @db.Uuid
+  name        String   @default("VAT") @db.VarChar(30)
+  /// 0–100, e.g. 18.00. 0 is allowed (explicitly configured).
+  ratePercent Decimal  @map("rate_percent") @db.Decimal(5, 2)
+  isActive    Boolean  @default(true) @map("is_active")
+  createdById String   @map("created_by_id") @db.Uuid
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  createdBy User @relation("TaxSettingCreatedBy", fields: [createdById], references: [id])
+
+  @@map("tax_settings")
+}
+
+/// Organisation-wide customer (S6, FR-CUST-01). Minimal personal data.
+model Customer {
+  id          String   @id @default(uuid()) @db.Uuid
+  name        String   @db.VarChar(150)
+  /// Normalised international form (+255…); unique when set.
+  phone       String?  @unique @db.VarChar(20)
+  email       String?  @db.VarChar(254)
+  notes       String?  @db.VarChar(500)
+  isActive    Boolean  @default(true) @map("is_active")
+  createdById String   @map("created_by_id") @db.Uuid
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  createdBy User   @relation("CustomerCreatedBy", fields: [createdById], references: [id])
+  sales     Sale[]
+
+  @@index([name])
+  @@map("customers")
+}
+
+/// Completed sale (FR-SALE-02). Append-only (trigger); totals by CHECK.
+model Sale {
+  id             String     @id @default(uuid()) @db.Uuid
+  /// RCT-{BRANCHCODE}-{YYYY}-{NNNNNN} (S5).
+  receiptNumber  String     @unique @map("receipt_number") @db.VarChar(40)
+  branchId       String     @map("branch_id") @db.Uuid
+  cashierId      String     @map("cashier_id") @db.Uuid
+  customerId     String?    @map("customer_id") @db.Uuid
+  status         SaleStatus @default(COMPLETED)
+  currency       String     @default("TZS") @db.Char(3)
+  subtotal       Decimal    @db.Decimal(14, 2)
+  /// Always 0 in the MVP (S3, no discounts) — enforced by CHECK.
+  discountTotal  Decimal    @default(0) @map("discount_total") @db.Decimal(14, 2)
+  /// VAT rate used for this sale (snapshot).
+  taxRatePercent Decimal    @map("tax_rate_percent") @db.Decimal(5, 2)
+  taxAmount      Decimal    @map("tax_amount") @db.Decimal(14, 2)
+  total          Decimal    @db.Decimal(14, 2)
+  amountPaid     Decimal    @map("amount_paid") @db.Decimal(14, 2)
+  changeGiven    Decimal    @default(0) @map("change_given") @db.Decimal(14, 2)
+  /// Mandatory client key (S16); a replay returns this sale.
+  idempotencyKey String     @unique @map("idempotency_key") @db.Uuid
+  requestHash    String     @map("request_hash") @db.Char(64)
+  completedAt    DateTime   @default(now()) @map("completed_at") @db.Timestamptz(3)
+
+  branch   Branch     @relation(fields: [branchId], references: [id])
+  cashier  User       @relation("SaleCashier", fields: [cashierId], references: [id])
+  customer Customer?  @relation(fields: [customerId], references: [id])
+  items    SaleItem[]
+  payments Payment[]
+
+  @@index([branchId, completedAt])
+  @@index([cashierId, completedAt])
+  @@index([customerId])
+  @@map("sales")
+}
+
+/// Sale line with price/name/cost snapshots (FR-SALE-11). Append-only.
+model SaleItem {
+  id            String  @id @default(uuid()) @db.Uuid
+  saleId        String  @map("sale_id") @db.Uuid
+  lineNumber    Int     @map("line_number")
+  productId     String  @map("product_id") @db.Uuid
+  sku           String  @db.VarChar(40)
+  productName   String  @map("product_name") @db.VarChar(200)
+  /// Serialized lines only; a unit belongs to at most one sale (BR-02, BR-19).
+  productUnitId String? @unique @map("product_unit_id") @db.Uuid
+  quantity      Int
+  /// Selling price at checkout (tax-exclusive, S20).
+  unitPrice     Decimal @map("unit_price") @db.Decimal(14, 2)
+  lineTotal     Decimal @map("line_total") @db.Decimal(14, 2)
+  /// Moving-average cost at sale time (S11). Never shown to cashiers.
+  costAtSale    Decimal @map("cost_at_sale") @db.Decimal(18, 4)
+
+  sale        Sale         @relation(fields: [saleId], references: [id])
+  product     Product      @relation(fields: [productId], references: [id])
+  productUnit ProductUnit? @relation(fields: [productUnitId], references: [id])
+
+  @@unique([saleId, lineNumber])
+  @@index([productId])
+  @@map("sale_items")
+}
+
+/// Payment entry (FR-SALE-06/07). Σ payments = sale total (deferred trigger).
+model Payment {
+  id             String        @id @default(uuid()) @db.Uuid
+  saleId         String        @map("sale_id") @db.Uuid
+  method         PaymentMethod
+  amount         Decimal       @db.Decimal(14, 2)
+  /// CASH only: amount handed over (≥ amount); change = tendered − amount.
+  amountTendered Decimal?      @map("amount_tendered") @db.Decimal(14, 2)
+  /// Required for MOBILE_MONEY and BANK_TRANSFER (S4).
+  reference      String?       @db.VarChar(100)
+  createdAt      DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  sale Sale @relation(fields: [saleId], references: [id])
+
+  @@index([saleId])
+  @@map("payments")
 }
