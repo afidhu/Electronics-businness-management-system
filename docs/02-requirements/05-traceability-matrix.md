@@ -7,7 +7,7 @@
 | FR-UNIT-01..04 | ProductUnit / UnitIdentifier | Duplicate identifier and single-sale tests |
 | FR-PUR-01..05 | Supplier, Purchase, PurchaseItem (Module 4); receiving service (Module 5) | Purchase state tests (Module 4); receiving idempotency tests (Module 5) |
 | FR-INV-01..12 | Inventory (Module 5): ledger, balances, receiving; adjustments/transfers in stage 5.2 | Ledger, receiving, idempotency, BR-14 tests (Module 5); transfer/adjustment tests with stage 5.2 |
-| FR-SALE-01..09 | Sales, SaleItem, Payment, receipt service | Checkout, insufficient stock, concurrent sale and payment tests |
+| FR-SALE-01..11 | Module 6: POS catalogue/quote, checkout, payments, receipts (returns FR-SALE-08 deferred) | Checkout, insufficient stock, concurrent sale, rollback, idempotency, payment tests (Module 6) |
 | FR-CUST-01 | Customer module | Customer validation and sales association tests |
 | FR-WAR-01..04 | Warranty, WarrantyClaim | Warranty start/end and eligibility tests |
 | FR-RPT-01..04 | Reports module | Date/branch filter and reconciliation tests |

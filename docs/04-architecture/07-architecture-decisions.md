@@ -277,3 +277,21 @@ The project owner approved the roles, branch access and authentication strategy 
   - Unit cost comes from the PO line.
   - The PO becomes PARTIALLY_RECEIVED or RECEIVED via a conditional update.
 - **Idempotency:** a mandatory UUID key, unique per receipt, stored with a SHA-256 request hash. A replay returns the original; a different payload returns 409. A concurrent duplicate is resolved by the UNIQUE constraint.
+
+## ADR-031: POS checkout, tax and payments
+**Status:** Accepted (16 Nov 2026, S0–S20; S13 deferred). Proposal: `docs/proposals/module-6-pos.md`.  
+**Decision:**
+- **One-transaction checkout:**
+  - idempotency lookup;
+  - products locked FOR SHARE (active, price);
+  - active VAT rate required (BR-20);
+  - valuations, balances and units locked in sorted order (same lock order as receiving);
+  - quantity stock decremented conditionally (`on_hand − reserved ≥ q`); serialized units moved IN_STOCK → SOLD conditionally;
+  - SALE ledger rows written through `StockLedgerService` (WAC unchanged, costAtSale = current WAC);
+  - sale, lines and payments inserted, audited, committed.
+- **Database guarantees:** totals CHECKs; a partial UNIQUE index on `sale_items.product_unit_id` (one sale per unit); append-only sales, lines and payments; a deferred trigger requiring Σ payments = total; `on_hand >= 0`.
+- **Tax:** `tax_settings` with one active row, set via `PUT /settings/tax` (`settings:write`, SYSTEM_ADMIN). Tax = round_half_up(subtotal × rate / 100, 2); the rate is snapshotted on the sale.
+- **Payments:** CASH (tendered ≥ amount → change), CARD, MOBILE_MONEY and BANK_TRANSFER (reference required); split payments; Σ = total exactly; no credit.
+- **Receipt:** `RCT-{BRANCH}-{YYYY}-{NNNNNN}` (business timezone). The frontend prints the JSON receipt.
+- **Module 5 change:** `MovementType` gains `SALE`; the `stock_movements` reference-type CHECK allows `'SALE'`.
+- Deferred: warranty (S13), returns/refunds/voids, discounts, holds, shifts.

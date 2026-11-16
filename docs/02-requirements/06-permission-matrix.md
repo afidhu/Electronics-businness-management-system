@@ -57,7 +57,8 @@ Branch-scoped roles must have at least one active branch. `SYSTEM_ADMIN` must ha
 | `warranty:write` | Warranty claims *(future)* | ✓ | | | | | ✓ | |
 | `repairs:read` | View repair jobs *(later release)* | ✓ | | | | | ✓ | ✓ |
 | `repairs:write` | Manage repair jobs *(later release)* | ✓ | | | | | ✓ | |
-| `reports:sales` | Sales reports & dashboard *(future)* | ✓ | ✓ | | | | | ✓ |
+| `settings:write` | Change organisation settings, e.g. the VAT rate (Module 6) | ✓ | | | | | | |
+| `reports:sales` | Sales reports & dashboard (Module 6: daily summary) | ✓ | ✓ | | | | | ✓ |
 | `reports:inventory` | Inventory reports *(future)* | ✓ | ✓ | | | | | ✓ |
 
 ## 6.4 Approved business decisions (16 Nov 2026)
@@ -83,6 +84,13 @@ Branch-scoped roles must have at least one active branch. `SYSTEM_ADMIN` must ha
 - **Receiving (BR-14, I4):** `inventory:receive` holders may receive only orders they did not create, submit (in any cycle) or approve. SYSTEM_ADMIN can't bypass this (I22). Enforced in the service and by a DB trigger.
 - **Costs:** unit costs, movement values and valuation are returned only with `catalogue:cost_read` (CASHIER sees quantities only). Valuation also requires `reports:inventory`.
 - **I9 (deferred to stage 5.2):** a new `inventory:adjust_approve` permission for MANAGER and SYSTEM_ADMIN will be added together with the adjustment workflow. **No new permission exists in stage 5.1.**
+
+## 6.4d Module 6 POS decisions (approved 16 Nov 2026)
+- **New permission `settings:write` (SYSTEM_ADMIN only)** to set the VAT rate (S1). Granted to no other role.
+- Only CASHIER and SYSTEM_ADMIN ring sales (`sales:create`, S19). SYSTEM_ADMIN must choose a branch (S10).
+- Cashiers see sales of their own branch only (S8). Managers and auditors see their branches; admin sees all.
+- Cost of goods sold (`costAtSale`) only with `catalogue:cost_read`; never to cashiers (S11).
+- Customers are organisation-wide (S6). Customer audit metadata never contains phone or email values.
 
 ## 6.5 Enforcement summary
 | Layer | Mechanism |

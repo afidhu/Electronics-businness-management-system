@@ -21,3 +21,4 @@ sequenceDiagram
   Svc-->>API: Receipt DTO
   API-->>UI: 201 Created + receipt
   UI-->>Cashier: Display/print receipt
+  Note over UI,DB: Module 6 detail: idempotency key (replay → 200 original sale); products locked FOR SHARE; valuations then balances then units in sorted order; quantity: conditional decrement on_hand − reserved ≥ q; serialized: IN_STOCK → SOLD conditional; SALE ledger rows; Σ payments = total (deferred trigger); VAT snapshot; audit sale.completed

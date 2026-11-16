@@ -74,6 +74,11 @@ Every response carries an `X-Request-Id` header, which is also returned as `requ
 | `IDENTIFIER_COUNT_MISMATCH` | 400 | Units/identifiers don't match quantity × identifiersPerUnit |
 | `DUPLICATE_IDENTIFIER` | 409 | Identifier already exists or is repeated in the request |
 | `IDEMPOTENCY_KEY_REUSED` | 409 | Same idempotency key used for a different request |
+| `INSUFFICIENT_STOCK` | 409 | Not enough available stock at the branch |
+| `UNIT_NOT_AVAILABLE` | 409 | Serialized unit not IN_STOCK at the selling branch (or already sold) |
+| `PAYMENT_MISMATCH` | 400 | Payments don't sum to the total, or tender/reference rules failed |
+| `TAX_NOT_CONFIGURED` | 409 | No VAT rate configured yet (BR-20) |
+| `PRODUCT_NOT_SELLABLE` | 400 | Product inactive or not found |
 | `ADMIN_LOCKOUT_PREVENTED` | 409 | Would deactivate/demote yourself or remove the last active administrator |
 
 Business modules add specific codes (e.g. `INSUFFICIENT_STOCK`) as they are implemented.
@@ -123,10 +128,17 @@ OpenAPI UI at `/api/docs` and JSON at `/api/docs-json`. Enabled by default outsi
 | POST | `/purchases/:id/cancel` | Cancel `{ reason }`; before approval: procurement:write; APPROVED: procurement:approve and nothing received. *Module 4* | procurement:write / approve |
 | POST | `/purchases/:id/receive` | Receive goods (partial/complete, idempotent). *Module 5*. The order's creator, submitter or approver can't receive it (BR-14) | inventory:receive |
 | GET/POST | `/products/:id/units` | Superseded by `/inventory/units?productId=`; units are created only by receiving | — |
-| GET/POST | `/customers` | Customer list/create | customers:read/write |
-| POST | `/sales` | Checkout | sales:create |
-| GET | `/sales/:id` | Sale detail/receipt | sales:read |
-| POST | `/sales/:id/returns` | Return workflow | sales:return |
+| GET/POST | `/customers` | Customer search (`q` name/phone)/create. *Module 6* | customers:read/write |
+| GET/PATCH | `/customers/:id` | View/update. *Module 6* | customers:read/write |
+| GET/PUT | `/settings/tax` | Active VAT rate / set a new rate (audited). *Module 6* | authenticated / **settings:write** |
+| GET | `/pos/catalogue` | Products with price and available stock at a branch. *Module 6* | sales:create |
+| GET | `/pos/units` | IN_STOCK units of a product at a branch. *Module 6* | sales:create |
+| POST | `/pos/quote` | Server-priced cart preview, no side effects. *Module 6* | sales:create |
+| POST | `/sales` | Checkout (idempotent; 201 new / 200 replay). *Module 6* | sales:create |
+| GET | `/sales` | List (`from`, `to`, `branchId`, `cashierId`, `customerId`, `receiptNumber`); branch-scoped. *Module 6* | sales:read |
+| GET | `/sales/summary` | Daily summary per payment method and cashier. *Module 6* | reports:sales |
+| GET | `/sales/:id`, `/sales/:id/receipt` | Sale detail / receipt DTO for printing. *Module 6* | sales:read |
+| POST | `/sales/:id/returns` | Return workflow. **Deferred (after Module 6)** | sales:return |
 | GET | `/warranties/lookup` | Lookup by serial/receipt | warranty:read |
 | POST | `/warranties/claims` | Register claim | warranty:write |
 | GET | `/reports/sales` | Sales report | reports:sales |

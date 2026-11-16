@@ -94,10 +94,18 @@
 - Serialized units are marked SOLD.
 - Payment and stock movement are recorded atomically.
 - Receipt number is unique.
+- *(Module 6)* The server prices the cart (tax-exclusive prices + configured VAT); payments must sum to the total; cash shows change; a double-click or retry never creates two sales; the last unit can't be sold twice.
 
 **US-07 — Review sales:** As a manager, I want to filter sales.
 - Filters include date range, branch and cashier.
 - Totals reconcile to completed sales/payment entries.
+- *(Module 6)* A daily summary shows count, VAT, gross and totals per payment method and per cashier.
+
+**US-23 — Register a customer:** As a cashier, I find a customer by phone or create one (name, phone, optional email). Walk-in sales need no customer. *(Module 6)*
+
+**US-24 — Configure VAT:** As an administrator, I set the VAT rate (0% allowed); sales are blocked until it is set; each sale keeps the rate it used. *(Module 6)*
+
+**US-25 — Reprint a receipt:** As a cashier, I reopen a receipt of my branch. *(Module 6)*
 
 ## Warranty
 **US-08 — Check warranty:** As a staff member, I want to check warranty by serial or receipt.
@@ -112,6 +120,6 @@
 4. Cashier sells one unit to a customer.
 5. The unit becomes SOLD and stock decreases.
 6. Receipt is displayed/printed.
-7. Warranty is visible for the sold unit.
+7. Warranty is visible for the sold unit. *(Deferred, S13: future work.)*
 8. Manager sees the sale in daily reporting.
 9. Second sale attempt for the same unit is rejected.
