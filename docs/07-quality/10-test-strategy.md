@@ -135,3 +135,44 @@ Do not deploy a release if critical tests fail, migrations are unreviewed, produ
   - every role × read/write; a refused write changes nothing
 - **Defect found by unit tests:** a mistyped 9-digit number starting with 0 was turned into an impossible `+2550…` number. Fixed: bare 9-digit subscriber numbers never start with 0.
 - **Mutation check:** opening the VAT route to any authenticated user failed 7 tests; writing personal values into customer audit failed 1. Code restored.
+
+## 10.11 Module 6 stage 6.3 evidence (POS search, unit selection, pricing preview)
+- **Totals after stage 6.3:** **237 unit** and **394 e2e** tests, all passing (Modules 1–5 and stages 6.1–6.2 unchanged). No migration.
+- **Unit `pricing.spec.ts` (11):**
+  - half-up rounding to 2 decimals
+  - demo cart 1,780,000 + 18% = 2,100,400
+  - VAT rounded once on the subtotal, not per line
+  - fractional rates; 0% VAT
+  - Decimal(14,2) overflow; invalid quantity or rate rejected
+- **`pos-quote.e2e-spec.ts` (59):** stock is received through the real PO → approve → receive API.
+  - **VAT not configured:** quote → 409 `TAX_NOT_CONFIGURED`; the catalogue stays browsable.
+  - **Roles:** 401 without a token. MANAGER, INVENTORY, PROCUREMENT, TECHNICIAN and AUDITOR get 403 on all three endpoints. CASHIER (branch implied) and SYSTEM_ADMIN (branch chosen) are allowed.
+  - **Branches:**
+    - a cashier at another branch → 403 `BRANCH_ACCESS_DENIED`
+    - admin without `branchId` → 400
+    - inactive branch → 400 `REFERENCE_INACTIVE`; unknown branch → 404
+  - **Search:**
+    - search by name, SKU or brand, case-insensitive
+    - inactive products are hidden even when they have stock
+    - available stock is per branch; `inStockOnly` filter
+    - **no cost field anywhere in the response**; unknown query parameters → 400
+  - **Units:**
+    - only IN_STOCK units at the selling branch are listed, with identifiers (dual IMEI, primary first)
+    - a scanned serial or IMEI resolves regardless of case, spaces or dashes
+    - a sold unit, another branch's unit, or a unit of an inactive product → 409 `UNIT_NOT_AVAILABLE`, without revealing where the unit is (I15)
+  - **Quote:**
+    - server prices and totals
+    - every client-supplied price, total, tax rate or discount field → 400
+    - S15 limits (50 lines, 1–1,000 units, integers only)
+    - insufficient stock → 409 `INSUFFICIENT_STOCK` with line details
+    - inactive or unknown product → 400 `PRODUCT_NOT_SELLABLE`
+    - serialized-line rules: unit required, quantity 1, matching product, no unit twice
+    - the same quantity product twice → `DUPLICATE_PRODUCT_LINE`
+    - **no side effects** (balances, units, movements, sales, payments, sequences and audit are identical)
+    - a VAT change (0%) and a manager's price change apply to the next quote
+- **Mutation check (each rule removed in turn, tests failed, code restored, 0 markers left):**
+  - active-product check: 2 failed
+  - stock check: 2 failed
+  - unit branch/status check: 6 failed
+  - inactive product on scanned unit: 1 failed
+- **Stability:** the new suite passed 3/3 consecutive runs.

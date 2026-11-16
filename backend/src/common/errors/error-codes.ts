@@ -74,6 +74,12 @@ export enum ErrorCode {
   // Module 6 — POS
   /** No VAT rate configured yet: sales are blocked (BR-20). */
   TAX_NOT_CONFIGURED = 'TAX_NOT_CONFIGURED',
+  /** Not enough available stock at the selling branch (BR-01). */
+  INSUFFICIENT_STOCK = 'INSUFFICIENT_STOCK',
+  /** Serialized unit not IN_STOCK at the selling branch (sold, elsewhere, unavailable). */
+  UNIT_NOT_AVAILABLE = 'UNIT_NOT_AVAILABLE',
+  /** Product inactive or unknown: cannot be sold (S9, US-03). */
+  PRODUCT_NOT_SELLABLE = 'PRODUCT_NOT_SELLABLE',
 }
 
 /** Fallback code for a bare HTTP status (used when no explicit code is given). */

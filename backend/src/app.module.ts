@@ -8,6 +8,7 @@ import { CustomersModule } from './customers/customers.module';
 import { AppConfigModule } from './config/app-config.module';
 import { HealthModule } from './health/health.module';
 import { InventoryModule } from './inventory/inventory.module';
+import { PosModule } from './pos/pos.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { ProcurementModule } from './procurement/procurement.module';
 import { SettingsModule } from './settings/settings.module';
@@ -28,6 +29,7 @@ import { UsersModule } from './users/users.module';
     InventoryModule,
     SettingsModule,
     CustomersModule,
+    PosModule,
   ],
 })
 export class AppModule {}
