@@ -1,0 +1,176 @@
+// ElectroCore EBMS — Prisma schema.
+// Domain models are added module by module (see ElectroCore_EBMS_Documentation).
+// The connection URL is supplied by prisma.config.ts (Prisma 7), not here.
+//
+// Conventions (ADR-011, data dictionary "Physical conventions"):
+// - UUID primary keys; snake_case table/column names via @@map/@map.
+// - Timestamps: timestamptz, stored in UTC. Money: Decimal(14,2).
+// - Referenced business records are deactivated, not hard-deleted.
+
+generator client {
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
+  moduleFormat = "cjs"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ---------------------------------------------------------------------------
+// Module 2 — Identity, access control and audit (ADR-016 .. ADR-020)
+// ---------------------------------------------------------------------------
+
+/// Role grouping permissions. System roles are seeded and read-only via the API.
+model Role {
+  id          String   @id @default(uuid()) @db.Uuid
+  /// Stable key, e.g. SYSTEM_ADMIN, CASHIER.
+  key         String   @unique @db.VarChar(50)
+  name        String   @db.VarChar(100)
+  description String?  @db.VarChar(500)
+  /// Max branch assignments for users with this role; null = unlimited.
+  maxBranches Int?     @map("max_branches")
+  isSystem    Boolean  @default(true) @map("is_system")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  permissions RolePermission[]
+  users       User[]
+
+  @@map("roles")
+}
+
+/// Fine-grained capability, e.g. `sales:create`.
+model Permission {
+  id          String @id @default(uuid()) @db.Uuid
+  key         String @unique @db.VarChar(100)
+  description String @db.VarChar(500)
+
+  roles RolePermission[]
+
+  @@map("permissions")
+}
+
+model RolePermission {
+  roleId       String @map("role_id") @db.Uuid
+  permissionId String @map("permission_id") @db.Uuid
+
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+  @@index([permissionId])
+  @@map("role_permissions")
+}
+
+/// Business stock/sales location.
+model Branch {
+  id        String   @id @default(uuid()) @db.Uuid
+  /// Short unique code, e.g. DSM01 (stored upper-case).
+  code      String   @unique @db.VarChar(20)
+  name      String   @db.VarChar(150)
+  address   String?  @db.VarChar(300)
+  phone     String?  @db.VarChar(30)
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  users     UserBranch[]
+  auditLogs AuditLog[]
+
+  @@map("branches")
+}
+
+/// Staff identity. Email is stored normalised (trimmed, lower-case).
+model User {
+  id                  String    @id @default(uuid()) @db.Uuid
+  email               String    @unique @db.VarChar(254)
+  fullName            String    @map("full_name") @db.VarChar(150)
+  /// Argon2id PHC string. Never returned by the API or logged.
+  passwordHash        String    @map("password_hash") @db.VarChar(255)
+  roleId              String    @map("role_id") @db.Uuid
+  isActive            Boolean   @default(true) @map("is_active")
+  failedLoginAttempts Int       @default(0) @map("failed_login_attempts")
+  lockedUntil         DateTime? @map("locked_until") @db.Timestamptz(3)
+  lastLoginAt         DateTime? @map("last_login_at") @db.Timestamptz(3)
+  passwordChangedAt   DateTime  @default(now()) @map("password_changed_at") @db.Timestamptz(3)
+  createdAt           DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt           DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  role          Role           @relation(fields: [roleId], references: [id])
+  branches      UserBranch[]   @relation("UserBranches")
+  assignedBy    UserBranch[]   @relation("BranchAssigner")
+  refreshTokens RefreshToken[]
+  auditLogs     AuditLog[]
+
+  @@index([roleId])
+  @@map("users")
+}
+
+/// Grants a user access to a branch (FR-ADM-01).
+model UserBranch {
+  userId       String   @map("user_id") @db.Uuid
+  branchId     String   @map("branch_id") @db.Uuid
+  assignedById String?  @map("assigned_by_id") @db.Uuid
+  assignedAt   DateTime @default(now()) @map("assigned_at") @db.Timestamptz(3)
+
+  user       User   @relation("UserBranches", fields: [userId], references: [id], onDelete: Cascade)
+  branch     Branch @relation(fields: [branchId], references: [id])
+  assignedBy User?  @relation("BranchAssigner", fields: [assignedById], references: [id])
+
+  @@id([userId, branchId])
+  @@index([branchId])
+  @@map("user_branches")
+}
+
+/// Opaque refresh token, stored only as a SHA-256 hash (ADR-017).
+/// Tokens of one login session share a `familyId`; rotation links them.
+model RefreshToken {
+  id               String    @id @default(uuid()) @db.Uuid
+  userId           String    @map("user_id") @db.Uuid
+  tokenHash        String    @unique @map("token_hash") @db.Char(64)
+  familyId         String    @map("family_id") @db.Uuid
+  /// Rotation never extends beyond this: expiresAt <= sessionExpiresAt.
+  expiresAt        DateTime  @map("expires_at") @db.Timestamptz(3)
+  /// Absolute end of the login session (login + SESSION_MAX_LIFETIME_DAYS), copied on rotation.
+  sessionExpiresAt DateTime  @map("session_expires_at") @db.Timestamptz(3)
+  createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  revokedAt        DateTime? @map("revoked_at") @db.Timestamptz(3)
+  /// ROTATED | LOGOUT | LOGOUT_ALL | REUSE_DETECTED | PASSWORD_CHANGED | USER_DEACTIVATED
+  revokedReason    String?   @map("revoked_reason") @db.VarChar(30)
+  replacedById     String?   @unique @map("replaced_by_id") @db.Uuid
+
+  user       User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  replacedBy RefreshToken? @relation("Rotation", fields: [replacedById], references: [id])
+  replaces   RefreshToken? @relation("Rotation")
+
+  @@index([userId])
+  @@index([familyId])
+  @@map("refresh_tokens")
+}
+
+/// Append-only history of sensitive actions (FR-ADM-02, FR-AUTH-06).
+/// Metadata must never contain passwords, tokens or secrets.
+model AuditLog {
+  id         String   @id @default(uuid()) @db.Uuid
+  /// Null for anonymous events (e.g. a failed login for an unknown email).
+  actorId    String?  @map("actor_id") @db.Uuid
+  action     String   @db.VarChar(100)
+  entityType String   @map("entity_type") @db.VarChar(50)
+  entityId   String?  @map("entity_id") @db.Uuid
+  /// Branch the event belongs to, used for branch-scoped audit reading.
+  branchId   String?  @map("branch_id") @db.Uuid
+  metadata   Json?
+  ipAddress  String?  @map("ip_address") @db.VarChar(45)
+  requestId  String?  @map("request_id") @db.VarChar(64)
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  actor  User?   @relation(fields: [actorId], references: [id])
+  branch Branch? @relation(fields: [branchId], references: [id])
+
+  @@index([createdAt])
+  @@index([actorId])
+  @@index([entityType, entityId])
+  @@index([branchId])
+  @@map("audit_logs")
+}
