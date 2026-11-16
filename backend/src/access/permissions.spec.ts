@@ -82,7 +82,7 @@ describe('permission matrix (ADR-016)', () => {
       ROLE_DEFINITIONS.map((r) => [r.key, r.permissions.length]),
     );
     expect(grants).toEqual({
-      SYSTEM_ADMIN: 31,
+      SYSTEM_ADMIN: 32,
       MANAGER: 19,
       INVENTORY_OFFICER: 10,
       PROCUREMENT_OFFICER: 7,
@@ -90,6 +90,13 @@ describe('permission matrix (ADR-016)', () => {
       TECHNICIAN: 7,
       AUDITOR: 14,
     });
+  });
+
+  it('settings:write is held by SYSTEM_ADMIN only (Module 6, S1)', () => {
+    const holders = ROLE_DEFINITIONS.filter((r) =>
+      r.permissions.includes(PERMISSIONS.SETTINGS_WRITE),
+    ).map((r) => r.key);
+    expect(holders).toEqual(['SYSTEM_ADMIN']);
   });
 
   it('AUDITOR is strictly read-only', () => {

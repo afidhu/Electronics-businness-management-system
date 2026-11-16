@@ -118,3 +118,20 @@ Do not deploy a release if critical tests fail, migrations are unreviewed, produ
   - all code was restored
 - **Stability:** 3/3 consecutive runs green.
 - **Not run:** `npm audit` could not reach the registry (network error). No dependencies were added in Module 5.
+
+## 10.10 Module 6 stages 6.1–6.2 evidence (POS schema, VAT settings, customers)
+- **Totals after stage 6.2:** **226 unit** and **335 e2e** tests, all passing (Modules 1–5 unchanged).
+- **6.1 `pos-schema.e2e-spec.ts` (26):** every POS database rule on direct writes:
+  - whole-sale deferred trigger (payments = total, lines = subtotal, change)
+  - header CHECKs; one sale per unit; append-only tables
+  - payment rules; tax-history immutability; customer rules
+  - SALE ledger movements
+  - **Finding:** Prisma's 1:1 `connect` on `sale_items.product_unit_id` would detach a unit from its earlier sale. The append-only trigger blocks it; checkout must write scalar foreign keys.
+- **6.2 unit (42 new):** phone normalisation (Tanzanian and international formats; every local format of one number maps to one value; invalid inputs), VAT-rate format, `requireActive` sales guard (BR-20, 0% counts as configured), permission snapshot (`settings:write` held only by SYSTEM_ADMIN).
+- **6.2 `settings-customers.e2e-spec.ts` (39):**
+  - VAT: unconfigured → guard blocks; six non-admin roles get 403 and nothing is stored; validation; set 18% → all roles read it; 0% allowed; history kept; no-op not audited; concurrent admins → exactly one active rate; audit visibility
+  - customers: normalisation; duplicates across formats → 409; validation; search by name, full phone in any format or partial digits; update/clear/deactivate
+  - **audit stores changed field names only, never phone, email or name**
+  - every role × read/write; a refused write changes nothing
+- **Defect found by unit tests:** a mistyped 9-digit number starting with 0 was turned into an impossible `+2550…` number. Fixed: bare 9-digit subscriber numbers never start with 0.
+- **Mutation check:** opening the VAT route to any authenticated user failed 7 tests; writing personal values into customer audit failed 1. Code restored.

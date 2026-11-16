@@ -81,3 +81,11 @@ A requirement is not complete until its acceptance criteria and relevant test ev
 | FR-INV-07 / US-21 (I21) | `GET /inventory/balances?lowStock=true` | › read APIs |
 | FR-INV-12 (cost masking) | `inventory-query.service.ts` | › CASHIER sees quantities but never costs |
 | FR-INV-03/05/06, I6–I10c, I13 | **Stage 5.2, deferred** | — |
+
+### Module 6 stages 6.1–6.2 (16 Nov 2026)
+| Requirement | Implemented in | Test evidence |
+|---|---|---|
+| BR-19 (append-only sales, one sale per unit) | migration `…_pos` (triggers, UNIQUE) | `pos-schema.e2e-spec.ts` |
+| BR-20 / S1 (VAT configured before sales; history; `settings:write`) | `settings/tax-settings.service.ts`, `tax_settings` rules | `tax-settings.spec.ts`; `settings-customers.e2e-spec.ts` › VAT |
+| FR-CUST-01 / S6 (customers, normalised unique phone) | `customers/*`, `customers` CHECK and UNIQUE | `phone.spec.ts`; › customers |
+| FR-SALE-01..11 (checkout) | Stages 6.3–6.5 (pending) | — |

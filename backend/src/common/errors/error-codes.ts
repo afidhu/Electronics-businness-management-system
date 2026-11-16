@@ -70,6 +70,10 @@ export enum ErrorCode {
   DUPLICATE_IDENTIFIER = 'DUPLICATE_IDENTIFIER',
   /** Same idempotency key reused for a different request. */
   IDEMPOTENCY_KEY_REUSED = 'IDEMPOTENCY_KEY_REUSED',
+
+  // Module 6 — POS
+  /** No VAT rate configured yet: sales are blocked (BR-20). */
+  TAX_NOT_CONFIGURED = 'TAX_NOT_CONFIGURED',
 }
 
 /** Fallback code for a bare HTTP status (used when no explicit code is given). */
