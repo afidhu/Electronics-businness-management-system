@@ -295,3 +295,13 @@ The project owner approved the roles, branch access and authentication strategy 
 - **Receipt:** `RCT-{BRANCH}-{YYYY}-{NNNNNN}` (business timezone). The frontend prints the JSON receipt.
 - **Module 5 change:** `MovementType` gains `SALE`; the `stock_movements` reference-type CHECK allows `'SALE'`.
 - Deferred: warranty (S13), returns/refunds/voids, discounts, holds, shifts.
+- **Implementation notes (stage 6.4, 16 Nov 2026):**
+  - The idempotency key is serialised first with a transaction-scoped advisory lock (`pg_advisory_xact_lock`). Simultaneous retries of one sale therefore wait and then replay the original (200) instead of competing for stock.
+  - Same key with a different body, or from a different cashier → 409 `IDEMPOTENCY_KEY_REUSED`.
+  - Full lock order: key → products FOR SHARE (sorted) → active tax row FOR SHARE → valuations (sorted) → balances (sorted) → units (sorted).
+  - `costAtSale` stores the 4-dp WAC. The SALE ledger row uses the WAC rounded half-up to 2 dp, because `stock_movements.unit_cost` is Decimal(14,2) and the CHECK requires `value_delta = quantity_delta × unit_cost`.
+  - Payment total mismatch → 400 `PAYMENT_MISMATCH`. Other payment-rule failures → 400 `VALIDATION_ERROR` naming the field.
+  - Reading a sale from another branch → 403 `BRANCH_ACCESS_DENIED`, the same as other modules.
+  - `GET /sales/:id/receipt` never returns costs. `GET /sales/:id` includes `costAtSale` only with `catalogue:cost_read`.
+  - The daily summary's `costOfGoodsSold` and `grossProfit` (tax-exclusive subtotal − COGS) are likewise shown only with `catalogue:cost_read`.
+  - The receipt business name comes from the `BUSINESS_NAME` setting (default "ElectroCore Electronics").

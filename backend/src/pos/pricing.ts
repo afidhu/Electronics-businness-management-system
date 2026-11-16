@@ -60,3 +60,126 @@ export function priceCart(
   }
   return { lines: priced, subtotal, taxRatePercent: rate, taxAmount, total };
 }
+
+export const PAYMENT_METHODS = [
+  'CASH',
+  'CARD',
+  'MOBILE_MONEY',
+  'BANK_TRANSFER',
+] as const;
+export type PaymentMethodKey = (typeof PAYMENT_METHODS)[number];
+export const MAX_PAYMENTS = 5;
+
+export interface PaymentInput {
+  method: PaymentMethodKey;
+  amount: string;
+  amountTendered?: string;
+  reference?: string;
+}
+
+export interface SettledPayment {
+  method: PaymentMethodKey;
+  amount: Prisma.Decimal;
+  amountTendered: Prisma.Decimal | null;
+  reference: string | null;
+}
+
+export type Settlement =
+  | { ok: true; payments: SettledPayment[]; changeGiven: Prisma.Decimal }
+  | { ok: false; field: string; message: string; mismatch: boolean };
+
+/**
+ * Payment rules (S4): every amount > 0; Σ amounts = total exactly (no credit,
+ * no overpayment); cash may carry amountTendered ≥ amount and change =
+ * Σ (tendered − amount); only cash takes a tendered amount; MOBILE_MONEY and
+ * BANK_TRANSFER need a reference. Mirrors the DB CHECK and deferred trigger.
+ */
+export function settlePayments(
+  total: Prisma.Decimal,
+  payments: readonly PaymentInput[],
+): Settlement {
+  const out: SettledPayment[] = [];
+  let sum = new Prisma.Decimal(0);
+  let change = new Prisma.Decimal(0);
+  for (const [i, p] of payments.entries()) {
+    const f = `payments.${i}`;
+    const amount = new Prisma.Decimal(p.amount);
+    if (amount.lte(0)) {
+      return {
+        ok: false,
+        field: `${f}.amount`,
+        message: 'amount must be greater than 0',
+        mismatch: false,
+      };
+    }
+    let tendered: Prisma.Decimal | null = null;
+    if (p.amountTendered !== undefined) {
+      if (p.method !== 'CASH') {
+        return {
+          ok: false,
+          field: `${f}.amountTendered`,
+          message: 'only cash payments take an amount tendered',
+          mismatch: false,
+        };
+      }
+      tendered = new Prisma.Decimal(p.amountTendered);
+      if (tendered.lt(amount)) {
+        return {
+          ok: false,
+          field: `${f}.amountTendered`,
+          message: 'amount tendered cannot be less than the amount',
+          mismatch: false,
+        };
+      }
+      change = change.plus(tendered.minus(amount));
+    }
+    const reference = p.reference?.trim() || null;
+    if (
+      (p.method === 'MOBILE_MONEY' || p.method === 'BANK_TRANSFER') &&
+      !reference
+    ) {
+      return {
+        ok: false,
+        field: `${f}.reference`,
+        message: `a reference is required for ${p.method}`,
+        mismatch: false,
+      };
+    }
+    sum = sum.plus(amount);
+    out.push({ method: p.method, amount, amountTendered: tendered, reference });
+  }
+  if (!sum.equals(total)) {
+    return {
+      ok: false,
+      field: 'payments',
+      message: `payments total ${sum.toFixed(2)} must equal the sale total ${total.toFixed(2)}`,
+      mismatch: true,
+    };
+  }
+  if (change.gt(MAX_MONEY)) {
+    return {
+      ok: false,
+      field: 'payments',
+      message: 'amount tendered is too large',
+      mismatch: false,
+    };
+  }
+  return { ok: true, payments: out, changeGiven: change };
+}
+
+/** Receipt number (S5): RCT-{BRANCH}-{YYYY}-{NNNNNN}. */
+export function formatReceiptNumber(
+  branchCode: string,
+  year: string,
+  n: number,
+): string {
+  if (!Number.isInteger(n) || n < 1 || n > 999999) {
+    throw new Error('receipt sequence out of range');
+  }
+  return `RCT-${branchCode}-${year}-${String(n).padStart(6, '0')}`;
+}
+
+/** Sale-line cost for the ledger: WAC (4 dp) rounded half-up to the 2-dp movement column. */
+export function ledgerUnitCost(averageCost: Prisma.Decimal): Prisma.Decimal {
+  return averageCost.toDecimalPlaces(2, Prisma.Decimal.ROUND_HALF_UP);
+}

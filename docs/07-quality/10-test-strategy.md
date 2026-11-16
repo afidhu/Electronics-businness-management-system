@@ -176,3 +176,49 @@ Do not deploy a release if critical tests fail, migrations are unreviewed, produ
   - unit branch/status check: 6 failed
   - inactive product on scanned unit: 1 failed
 - **Stability:** the new suite passed 3/3 consecutive runs.
+
+## 10.12 Module 6 stage 6.4 evidence (complete POS sales workflow: checkout, payments, stock, receipts, summary)
+- **Totals after stage 6.4:** **249 unit** and **458 e2e** tests, all passing (Modules 1–5 and stages 6.1–6.3 unchanged). No migration.
+- **Unit (12 new):**
+  - payment settlement: demo split with change; exact card payment; under/overpayment; zero amount; tender below amount; tender on a non-cash method; missing mobile-money or bank reference
+  - receipt-number format and range
+  - WAC → ledger cost rounding
+  - receipt date/time in the business timezone
+- **`sales.e2e-spec.ts` (64):** stock received through the real PO → approve → receive API at two branches.
+  - **Workflow:** search → scan serial → quote → checkout (mobile money + cash with change) → receipt.
+    - Exact totals 1,780,000 + 18% VAT = 2,100,400; change 600.
+    - Stock −2 cables / −1 laptop; the device becomes SOLD.
+    - SALE ledger rows reference the sale at WAC; WAC is unchanged.
+    - `sale.completed` audit without payment references.
+    - Receipt numbers are sequential per branch (`RCT-BR-A-YYYY-000001`, `…-000002`, `RCT-BR-B-…-000001`).
+  - **Costs:** never shown to cashiers, never on receipts; `costAtSale` shown to manager, auditor and admin only.
+  - **Payments:** all four methods in one split sale. Under/overpayment → `PAYMENT_MISMATCH`. Missing references, bad tender, zero/negative/3-dp/numeric amounts, unknown method, 0 or 6 payments → 400. Every refusal changes nothing.
+  - **Tampering:** 13 client-supplied price/total/tax/cost/discount/payment/cashier/receipt/status fields → 400 because of that field, and nothing changes. A payment computed from a lower fake price → `PAYMENT_MISMATCH`.
+  - **Stock and devices:** insufficient stock → 409; sold or other-branch device → 409; inactive product → 400; a dual-IMEI phone sells by either IMEI.
+  - **Idempotency:** a retry returns the identical sale (200) with no changes. Same key with a different body, or from another cashier → 409. Missing or malformed key → 400. **6 simultaneous submissions of one sale → one 201 and five 200 with the same sale.**
+  - **Concurrency:**
+    - **6 checkouts race for the last 3 SIM cards → exactly 3 sales, stock 0.**
+    - **5 checkouts of one device → exactly one sale; one sale line and one SALE movement for it.**
+  - **Rollback:** a failure injected at the last step (audit) → 500 with no internal detail. Stock, devices, sale, lines, payments, movements, audit and the receipt sequence are all unchanged, and the next receipt number has no gap. A mixed cart failing on its last line changes nothing.
+  - **Permissions:**
+    - only CASHIER and SYSTEM_ADMIN can check out
+    - a cashier cannot sell at another branch; the admin must choose an active branch; unknown or inactive customer → 400
+    - sales list, detail and receipt are branch-scoped: a cashier sees their whole branch (S8), a manager or auditor their branches, the admin all; another branch's sale → 403; inventory, procurement and technician roles → 403
+    - list filters work by receipt, cashier, customer and business-date range
+  - **Snapshots:** a later price change and a VAT change (16%) do not alter completed sales; new sales use the new values.
+  - **Daily summary:**
+    - count, units, tax and total equal the database figures; payment methods add up to the total; cashier counts add up
+    - manager, auditor and admin may read it; cashiers and other roles → 403; another branch → 403
+    - an empty day returns zeros
+  - **Reconciliation:**
+    - balances = Σ movements, never negative; serialized on-hand = IN_STOCK units
+    - each sale's SALE movements = its lines; SOLD units ⇔ sold lines; payments = totals
+    - no orphan SALE movements; one audit event per sale
+- **Mutation check (each rule removed in turn; code restored; 0 markers left):**
+  - conditional stock decrement: 3 failed
+  - idempotency-key lock: 1 failed
+  - payment rules: 9 failed
+  - branch check on sale reads: 1 failed
+  - cost masking: 2 failed
+  - **Survived by design:** removing the `IN_STOCK` guard on the device update. The partial UNIQUE index on `sale_items.product_unit_id` still rejects the second sale, the losing checkout rolls back completely, and the API returns the same 409 `UNIT_NOT_AVAILABLE`. This confirms the database backstop works independently.
+- **Stability:** the new suite passed 3/3 consecutive runs (including the concurrency tests).

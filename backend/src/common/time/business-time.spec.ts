@@ -1,4 +1,8 @@
-import { businessDate, businessDayRangeUtc } from './business-time';
+import {
+  businessDate,
+  businessDateTime,
+  businessDayRangeUtc,
+} from './business-time';
 
 const TZ = 'Africa/Dar_es_Salaam'; // UTC+3, no daylight saving
 
@@ -41,5 +45,22 @@ describe('businessDayRangeUtc', () => {
     expect(() => businessDayRangeUtc('16/11/2026', TZ)).toThrow(
       /Invalid business date/,
     );
+  });
+});
+
+describe('businessDateTime', () => {
+  it('formats in the business timezone (EAT = UTC+3), 24-hour clock', () => {
+    expect(
+      businessDateTime(
+        new Date('2026-11-16T21:30:05Z'),
+        'Africa/Dar_es_Salaam',
+      ),
+    ).toBe('2026-11-17 00:30:05');
+    expect(
+      businessDateTime(
+        new Date('2026-11-16T09:05:00Z'),
+        'Africa/Dar_es_Salaam',
+      ),
+    ).toBe('2026-11-16 12:05:00');
   });
 });

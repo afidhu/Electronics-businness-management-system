@@ -80,6 +80,7 @@ export enum ErrorCode {
   UNIT_NOT_AVAILABLE = 'UNIT_NOT_AVAILABLE',
   /** Product inactive or unknown: cannot be sold (S9, US-03). */
   PRODUCT_NOT_SELLABLE = 'PRODUCT_NOT_SELLABLE',
+  PAYMENT_MISMATCH = 'PAYMENT_MISMATCH',
 }
 
 /** Fallback code for a bare HTTP status (used when no explicit code is given). */

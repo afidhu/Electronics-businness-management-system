@@ -22,6 +22,20 @@ export interface StockIncrease {
   actorId: string;
 }
 
+export interface StockDecrease {
+  productId: string;
+  branchId: string;
+  quantity: number;
+  /** Cost per unit for the ledger row (Decimal(14,2)); the WAC for sales (S11). */
+  unitCost: Prisma.Decimal;
+  movementType: 'SALE';
+  /** Serialized products: one id per unit (one -1 movement each). */
+  productUnitIds?: string[];
+  referenceType: 'SALE';
+  referenceId: string;
+  actorId: string;
+}
+
 /**
  * The single place where stock changes (ADR-030). Callers must:
  *  1. run inside a transaction,
@@ -47,6 +61,61 @@ export class StockLedgerService {
       SELECT "product_id" FROM "inventory_valuations"
       WHERE "product_id" = ANY(${ids}::uuid[])
       ORDER BY "product_id" FOR UPDATE`;
+  }
+
+  /**
+   * Outflow at the current average cost: WAC is unchanged (moving average),
+   * the balance is decremented only if enough is available (a conditional
+   * UPDATE, so concurrent sales cannot oversell), then ledger rows are added.
+   * Returns false, changing nothing, when stock is insufficient.
+   */
+  async decrease(tx: Tx, change: StockDecrease): Promise<boolean> {
+    const units = change.productUnitIds ?? [];
+    if (!Number.isInteger(change.quantity) || change.quantity < 1) {
+      throw new Error('quantity must be a positive integer');
+    }
+    if (units.length > 0 && units.length !== change.quantity) {
+      throw new Error(
+        'one productUnitId per unit is required for serialized stock',
+      );
+    }
+    const updated = await tx.$executeRaw`
+      UPDATE "stock_balances"
+      SET "on_hand" = "on_hand" - ${change.quantity}, "updated_at" = now()
+      WHERE "product_id" = ${change.productId}::uuid
+        AND "branch_id" = ${change.branchId}::uuid
+        AND "on_hand" - "reserved" >= ${change.quantity}`;
+    if (updated !== 1) return false;
+
+    const base = {
+      productId: change.productId,
+      branchId: change.branchId,
+      movementType: change.movementType,
+      unitCost: change.unitCost,
+      referenceType: change.referenceType,
+      referenceId: change.referenceId,
+      actorId: change.actorId,
+    };
+    await tx.stockMovement.createMany({
+      data:
+        units.length > 0
+          ? units.map((productUnitId) => ({
+              ...base,
+              id: randomUUID(),
+              productUnitId,
+              quantityDelta: -1,
+              valueDelta: change.unitCost.negated(),
+            }))
+          : [
+              {
+                ...base,
+                id: randomUUID(),
+                quantityDelta: -change.quantity,
+                valueDelta: change.unitCost.times(-change.quantity),
+              },
+            ],
+    });
+    return true;
   }
 
   /** Costed increase: WAC update, balance upsert, ledger rows. */

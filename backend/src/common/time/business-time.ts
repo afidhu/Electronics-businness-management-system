@@ -64,3 +64,19 @@ export function businessDayRangeUtc(
 
   return { start: toUtc(y, m, d), end: toUtc(y, m, d + 1) };
 }
+
+/** `YYYY-MM-DD HH:mm:ss` of `instant` in `timeZone` (receipt display). */
+export function businessDateTime(instant: Date, timeZone: string): string {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone,
+    hourCycle: 'h23',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+  }).formatToParts(instant);
+  const get = (type: string) => parts.find((p) => p.type === type)?.value;
+  return `${get('year')}-${get('month')}-${get('day')} ${get('hour')}:${get('minute')}:${get('second')}`;
+}
