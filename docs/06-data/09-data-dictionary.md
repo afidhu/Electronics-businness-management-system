@@ -57,4 +57,5 @@ These apply to every table added to `backend/prisma/schema.prisma`.
 - Module 1: empty baseline migration `20261116112022_init`.
 - Module 2: migration `20261116115559_auth_rbac_audit` created `roles`, `permissions`, `role_permissions`, `branches`, `users`, `user_branches`, `refresh_tokens` and `audit_logs`. It also added check constraints (normalised email, upper-case branch code, positive `max_branches`, non-negative failure counter, 64-hex token hash) and the append-only trigger on `audit_logs`.
 - Migration `20261116…_session_absolute_expiry` added `refresh_tokens.session_expires_at` (backfilled, NOT NULL) and the check `expires_at <= session_expires_at` (ADR-021).
+- Module 3: migration `20261116130111_catalogue` created `categories`, `brands` and `products` (enums `TrackingMode`, `IdentifierType`), with CHECK constraints (SKU format, non-negative prices and reorder level, tracking/identifier consistency, lower-case `name_key`, JSON-object specifications) and a trigger making `sku` and the tracking policy immutable.
 - Tables use snake_case names (`@@map`). The ERD (`03-design/diagrams/04-erd.mmd`) reflects these models.

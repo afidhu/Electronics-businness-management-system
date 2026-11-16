@@ -3,6 +3,7 @@ import { AccessModule } from './access/access.module';
 import { AuditModule } from './audit/audit.module';
 import { AuthModule } from './auth/auth.module';
 import { BranchesModule } from './branches/branches.module';
+import { CatalogueModule } from './catalogue/catalogue.module';
 import { AppConfigModule } from './config/app-config.module';
 import { HealthModule } from './health/health.module';
 import { PrismaModule } from './prisma/prisma.module';
@@ -18,6 +19,7 @@ import { UsersModule } from './users/users.module';
     HealthModule,
     BranchesModule,
     UsersModule,
+    CatalogueModule,
   ],
 })
 export class AppModule {}

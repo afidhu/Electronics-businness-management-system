@@ -59,3 +59,18 @@ Do not deploy a release if critical tests fail, migrations are unreviewed, produ
 ### Module 2 amendments (16 Nov 2026)
 - The suites grew to **111 unit** and **88 e2e** tests: 30-day session cap (expiry maths, rotation keeps the absolute end, token/cookie capped, refresh rejected after the end, DB constraint), managers viewing only their branches' staff (and receiving 403 on user writes), and managers' audit visibility excluding global login events.
 - Live verification of the seeded administrator: login 200 with 29/29 permissions; `admin123` rejected. The password, access token and refresh token were absent from a verbose server log and from the `users`, `audit_logs` and `refresh_tokens` data.
+
+## 10.7 Module 3 evidence (product catalogue)
+- **Totals after Module 3:** **151 unit** and **161 e2e** tests, all passing (Modules 1–3).
+- **Unit (40 new):** SKU, name and specification rules; IMEI Luhn and identifier normalisation (for Module 5); cost masking; tracking policy; immutability; audit change sets; `@RequireAnyPermission`; permission-matrix snapshot (exact grant counts per role, so an accidental extra grant fails).
+- **E2E `catalogue.e2e-spec.ts` (73):**
+  - CRUD and search; case-insensitive duplicate names and SKUs (T-04), including a three-way concurrent create (one 201, two 409)
+  - 13 invalid-input cases; inactive and unknown references
+  - every role × every endpoint; cost hidden for CASHIER and TECHNICIAN in list and detail responses (D4)
+  - field-level PATCH: INVENTORY_OFFICER and MANAGER rejected on mixed requests with nothing changed; only MANAGER and SYSTEM_ADMIN change prices (D5)
+  - price audit with old → new values per field and the actor; below-cost event (D6); immutability (D9)
+  - deactivation blocked and a concurrency invariant (D12)
+  - database CHECK/UNIQUE constraints and the immutability trigger on direct writes
+  - audit visibility (D13); `db:seed:demo` guard and idempotency (D15)
+- **Mutation check:** removing the price-permission check failed 4 tests, removing cost masking 3, removing the category/brand checks 3. The code was restored afterwards.
+- **Stability:** one intermittent failure was traced to a test asserting the position of equal-named rows (order among equal names follows a random UUID). The test was fixed to assert membership; the suite then passed 5/5 consecutive runs.

@@ -8,6 +8,17 @@ import { Prisma } from '../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditLogQueryDto } from './dto/audit-log-query.dto';
 
+/**
+ * Entity types whose audit events belong to the whole organisation (no
+ * branch) and are visible to every audit reader (ADR-026). Identity and
+ * authentication events (entityType "User") are deliberately NOT included.
+ */
+export const ORGANISATION_WIDE_ENTITY_TYPES = [
+  'Category',
+  'Brand',
+  'Product',
+] as const;
+
 /** Keys never stored in audit metadata, at any depth (NFR-SEC-04). */
 const SENSITIVE_KEY = /pass(word)?|token|secret|hash|cookie|authorization/i;
 
@@ -63,6 +74,29 @@ export class AuditService {
     this.logger.debug(`audit ${event.action} ${event.entityType}`);
   }
 
+  /**
+   * Which audit events a user may see (ADR-020, ADR-026):
+   * - `branches:access_all` (SYSTEM_ADMIN): everything.
+   * - others: events of their branches, plus organisation-wide catalogue
+   *   events. Global identity/login events stay hidden from them.
+   */
+  private visibilityFilter(
+    user: AuthenticatedUser,
+    branchId?: string,
+  ): Prisma.AuditLogWhereInput {
+    if (user.allBranches) return { branchId };
+    if (branchId) return { branchId };
+    return {
+      OR: [
+        { branchId: { in: [...user.branchIds] } },
+        {
+          branchId: null,
+          entityType: { in: [...ORGANISATION_WIDE_ENTITY_TYPES] },
+        },
+      ],
+    };
+  }
+
   /** Branch-scoped, paginated audit history (audit:read). */
   async list(
     query: AuditLogQueryDto,
@@ -94,10 +128,7 @@ export class AuditService {
       entityId: query.entityId,
       actorId: query.actorId,
       createdAt: { gte: query.from, lt: query.to },
-      // Users without access_all only see events tied to their branches.
-      branchId: user.allBranches
-        ? query.branchId
-        : (query.branchId ?? { in: [...user.branchIds] }),
+      ...this.visibilityFilter(user, query.branchId),
     };
 
     const [items, total] = await this.prisma.$transaction([

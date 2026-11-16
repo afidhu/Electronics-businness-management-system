@@ -97,11 +97,13 @@ model User {
   createdAt           DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt           DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  role          Role           @relation(fields: [roleId], references: [id])
-  branches      UserBranch[]   @relation("UserBranches")
-  assignedBy    UserBranch[]   @relation("BranchAssigner")
-  refreshTokens RefreshToken[]
-  auditLogs     AuditLog[]
+  role            Role           @relation(fields: [roleId], references: [id])
+  branches        UserBranch[]   @relation("UserBranches")
+  assignedBy      UserBranch[]   @relation("BranchAssigner")
+  refreshTokens   RefreshToken[]
+  auditLogs       AuditLog[]
+  productsCreated Product[]      @relation("ProductCreatedBy")
+  productsUpdated Product[]      @relation("ProductUpdatedBy")
 
   @@index([roleId])
   @@map("users")
@@ -173,4 +175,91 @@ model AuditLog {
   @@index([entityType, entityId])
   @@index([branchId])
   @@map("audit_logs")
+}
+
+// ---------------------------------------------------------------------------
+// Module 3 — Product catalogue (ADR-025; docs/proposals/module-3-catalogue.md)
+// Organisation-wide (not branch-scoped). Deactivate, never delete.
+// ---------------------------------------------------------------------------
+
+enum TrackingMode {
+  SERIALIZED
+  QUANTITY
+}
+
+/// Identifier captured per physical unit of a SERIALIZED product (Module 5).
+enum IdentifierType {
+  IMEI
+  SERIAL
+}
+
+/// Flat product classification (D11).
+model Category {
+  id          String   @id @default(uuid()) @db.Uuid
+  name        String   @db.VarChar(100)
+  /// lower-case, whitespace-collapsed name: makes names case-insensitively unique.
+  nameKey     String   @unique @map("name_key") @db.VarChar(100)
+  description String?  @db.VarChar(500)
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  products Product[]
+
+  @@index([isActive])
+  @@map("categories")
+}
+
+model Brand {
+  id        String   @id @default(uuid()) @db.Uuid
+  name      String   @db.VarChar(100)
+  nameKey   String   @unique @map("name_key") @db.VarChar(100)
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  products Product[]
+
+  @@index([isActive])
+  @@map("brands")
+}
+
+/// Product model / SKU (ADR-004). Physical serialized units are ProductUnit (Module 5).
+model Product {
+  id                 String          @id @default(uuid()) @db.Uuid
+  /// Upper-case, immutable, unique across the organisation (FR-CAT-03, D9).
+  sku                String          @unique @db.VarChar(40)
+  name               String          @db.VarChar(200)
+  description        String?         @db.VarChar(2000)
+  categoryId         String          @map("category_id") @db.Uuid
+  brandId            String          @map("brand_id") @db.Uuid
+  /// Immutable after creation (D9).
+  trackingMode       TrackingMode    @map("tracking_mode")
+  /// SERIALIZED only; immutable.
+  identifierType     IdentifierType? @map("identifier_type")
+  /// SERIALIZED only (1 or 2, e.g. dual-SIM IMEIs); immutable.
+  identifiersPerUnit Int?            @map("identifiers_per_unit")
+  /// TZS. Hidden from users without catalogue:cost_read (D4).
+  costPrice          Decimal         @map("cost_price") @db.Decimal(14, 2)
+  /// TZS, tax-exclusive (D7), organisation-wide (D8).
+  sellingPrice       Decimal         @map("selling_price") @db.Decimal(14, 2)
+  reorderLevel       Int             @default(0) @map("reorder_level")
+  /// Flat descriptive attributes, e.g. { "ram": "16GB" }.
+  specifications     Json            @default("{}")
+  isActive           Boolean         @default(true) @map("is_active")
+  createdById        String?         @map("created_by_id") @db.Uuid
+  updatedById        String?         @map("updated_by_id") @db.Uuid
+  createdAt          DateTime        @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt          DateTime        @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  category  Category @relation(fields: [categoryId], references: [id])
+  brand     Brand    @relation(fields: [brandId], references: [id])
+  createdBy User?    @relation("ProductCreatedBy", fields: [createdById], references: [id])
+  updatedBy User?    @relation("ProductUpdatedBy", fields: [updatedById], references: [id])
+
+  @@index([name])
+  @@index([categoryId])
+  @@index([brandId])
+  @@index([isActive])
+  @@map("products")
 }

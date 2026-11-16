@@ -42,3 +42,16 @@ A requirement is not complete until its acceptance criteria and relevant test ev
 | FR-ADM-01 (branch access) | `access/branch-access.service.ts`, `branch-scope.guard.ts` | `access-control.e2e-spec.ts` › branch isolation |
 | NFR-SEC-05 (token storage/rotation/CSRF) | `refresh-token.service.ts`, `refresh-cookie.ts`, `guards/csrf.guard.ts` | `auth.e2e-spec.ts` › refresh, logout |
 | Brute force (risk register) | `@nestjs/throttler`, lockout in `auth.service.ts` | `auth.e2e-spec.ts` › lockout, rate limiting |
+
+### Module 3 (16 Nov 2026)
+| Requirement | Implemented in | Test evidence |
+|---|---|---|
+| FR-CAT-01 (categories/brands) | `catalogue/classification.*` | `catalogue.e2e-spec.ts` › categories and brands |
+| FR-CAT-02 (product data) | `catalogue/products.*`, `dto/product.dto.ts` | › creating products |
+| FR-CAT-03 (unique SKU) / T-04 | DB UNIQUE `products.sku`, upper-case normalisation | › duplicate SKUs, concurrent creates |
+| FR-CAT-04 (tracking mode) | `TrackingMode` enum, DB CHECK, immutability trigger | › creating products; database constraints |
+| FR-UNIT-01/05 groundwork (D3) | `catalogue-rules.ts` identifier normalisation and IMEI check; `identifiersPerUnit` | `catalogue-rules.spec.ts` |
+| US-03, US-13, US-14 | field-level PATCH, cost masking, price audit | › field-level permissions; cost visibility |
+| BR-07/BR-08 (audited price changes; decimal money) | `product.price_changed`, `Decimal(14,2)`, money DTOs | › audited with old → new |
+| BR-12 (tax-exclusive) | `priceIncludesTax: false`; no tax in catalogue | › creating products |
+| BR-13 (immutability; deactivation) | service checks + DB trigger; row locks | › immutability; deactivation rules |

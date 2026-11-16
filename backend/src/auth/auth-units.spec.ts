@@ -8,6 +8,7 @@ import type { AuthenticatedUser } from './auth.types';
 import {
   AUTHENTICATED_ONLY_KEY,
   IS_PUBLIC_KEY,
+  REQUIRED_ANY_PERMISSION_KEY,
   REQUIRED_PERMISSIONS_KEY,
 } from './decorators';
 import { CsrfGuard } from './guards/csrf.guard';
@@ -165,6 +166,20 @@ describe('PermissionsGuard', () => {
     const partial = httpContext({ user: user(['sales:read']) }, meta);
     expect(() =>
       new PermissionsGuard(partial.reflector).canActivate(partial.ctx),
+    ).toThrow(AppException);
+  });
+
+  it('@RequireAnyPermission admits a user holding at least one', () => {
+    const meta = {
+      [REQUIRED_ANY_PERMISSION_KEY]: ['catalogue:write', 'catalogue:price'],
+    };
+    for (const perms of [['catalogue:write'], ['catalogue:price']]) {
+      const c = httpContext({ user: user(perms) }, meta);
+      expect(new PermissionsGuard(c.reflector).canActivate(c.ctx)).toBe(true);
+    }
+    const none = httpContext({ user: user(['catalogue:read']) }, meta);
+    expect(() =>
+      new PermissionsGuard(none.reflector).canActivate(none.ctx),
     ).toThrow(AppException);
   });
 

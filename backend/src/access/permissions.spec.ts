@@ -8,7 +8,7 @@ import {
 
 const role = (key: string) => ROLE_DEFINITIONS.find((r) => r.key === key)!;
 const WRITE_LIKE =
-  /:(write|create|adjust|transfer|receive|approve|return|discount|access_all)$/;
+  /:(write|create|adjust|transfer|receive|approve|return|discount|access_all|price)$/;
 
 describe('permission matrix (ADR-016)', () => {
   it('defines exactly the seven approved roles', () => {
@@ -60,6 +60,36 @@ describe('permission matrix (ADR-016)', () => {
       ).map((r) => r.key);
       expect(holders.sort()).toEqual(['MANAGER', 'SYSTEM_ADMIN']);
     }
+  });
+
+  it('catalogue:price is held by exactly MANAGER and SYSTEM_ADMIN (D5)', () => {
+    const holders = ROLE_DEFINITIONS.filter((r) =>
+      r.permissions.includes(PERMISSIONS.CATALOGUE_PRICE),
+    ).map((r) => r.key);
+    expect(holders.sort()).toEqual(['MANAGER', 'SYSTEM_ADMIN']);
+  });
+
+  it('catalogue:cost_read is held by every role except CASHIER and TECHNICIAN (D4)', () => {
+    const without = ROLE_DEFINITIONS.filter(
+      (r) => !r.permissions.includes(PERMISSIONS.CATALOGUE_COST_READ),
+    ).map((r) => r.key);
+    expect(without.sort()).toEqual(['CASHIER', 'TECHNICIAN']);
+  });
+
+  it('the Module 3 change added exactly the two approved permissions and grants', () => {
+    // Snapshot of every grant; any accidental change to another role fails here.
+    const grants = Object.fromEntries(
+      ROLE_DEFINITIONS.map((r) => [r.key, r.permissions.length]),
+    );
+    expect(grants).toEqual({
+      SYSTEM_ADMIN: 31,
+      MANAGER: 19,
+      INVENTORY_OFFICER: 10,
+      PROCUREMENT_OFFICER: 7,
+      CASHIER: 8,
+      TECHNICIAN: 7,
+      AUDITOR: 14,
+    });
   });
 
   it('AUDITOR is strictly read-only', () => {

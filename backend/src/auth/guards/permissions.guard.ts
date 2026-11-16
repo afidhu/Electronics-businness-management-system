@@ -12,6 +12,7 @@ import type { AuthenticatedRequest } from '../auth.types';
 import {
   AUTHENTICATED_ONLY_KEY,
   IS_PUBLIC_KEY,
+  REQUIRED_ANY_PERMISSION_KEY,
   REQUIRED_PERMISSIONS_KEY,
 } from '../decorators';
 
@@ -49,6 +50,15 @@ export class PermissionsGuard implements CanActivate {
     );
     if (required && required.length > 0) {
       if (required.every((p) => user.permissions.has(p))) return true;
+      throw permissionDenied();
+    }
+
+    const anyOf = this.reflector.getAllAndOverride<string[] | undefined>(
+      REQUIRED_ANY_PERMISSION_KEY,
+      targets,
+    );
+    if (anyOf && anyOf.length > 0) {
+      if (anyOf.some((p) => user.permissions.has(p))) return true;
       throw permissionDenied();
     }
 

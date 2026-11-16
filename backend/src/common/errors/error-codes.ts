@@ -34,6 +34,16 @@ export enum ErrorCode {
   BRANCH_ASSIGNMENT_INVALID = 'BRANCH_ASSIGNMENT_INVALID',
   /** Change would leave no active system administrator, or lock the caller out. */
   ADMIN_LOCKOUT_PREVENTED = 'ADMIN_LOCKOUT_PREVENTED',
+
+  // Module 3 — product catalogue
+  /** Selected category or brand is inactive. */
+  REFERENCE_INACTIVE = 'REFERENCE_INACTIVE',
+  /** Category cannot be deactivated while active products use it. */
+  CATEGORY_IN_USE = 'CATEGORY_IN_USE',
+  /** Brand cannot be deactivated while active products use it. */
+  BRAND_IN_USE = 'BRAND_IN_USE',
+  /** Attempt to change sku, trackingMode or the identifier policy (D9). */
+  IMMUTABLE_FIELD = 'IMMUTABLE_FIELD',
 }
 
 /** Fallback code for a bare HTTP status (used when no explicit code is given). */

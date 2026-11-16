@@ -32,6 +32,7 @@ npm run prisma:migrate      # prisma migrate dev && prisma generate
 npm run prisma:status
 # set SEED_ADMIN_EMAIL / SEED_ADMIN_PASSWORD (>= 12 chars) in .env, then:
 npm run db:seed             # idempotent; remove SEED_ADMIN_PASSWORD afterwards
+npm run db:seed:demo        # OPTIONAL demo catalogue; refuses unless NODE_ENV=development
 ```
 First login and how to retrieve the temporary admin password: documentation `09-operations/12-operations-security.md` §12.8.
 
@@ -90,6 +91,7 @@ src/
   auth/                                  login, refresh, logout(-all), me, change-password; guards; tokens; Argon2id
   access/                                permission matrix (permissions.ts), RBAC seed, branch access, GET /roles, /permissions
   users/  branches/  audit/              user & branch administration; append-only audit log (GET /audit-logs)
+  catalogue/                             categories, brands, products; field-level price permissions; cost masking (Module 3)
   database/seed.ts                       `npm run db:seed`
   common/
     errors/          error codes, AppException, error response DTO
@@ -108,6 +110,11 @@ test/                e2e specs, test-env guard, global setup
 - `POST /api/v1/auth/login` returns an access token (15 min, keep in memory) and sets the `ebms_refresh` HttpOnly cookie (7 days).
 - `POST /auth/refresh` and `/auth/logout` need the cookie **and** the header `X-Requested-With: XMLHttpRequest`.
 - Roles, permissions and branch rules: `../docs/02-requirements/06-permission-matrix.md`. ADRs 016–020 cover the design.
+
+## Product catalogue (Module 3)
+- `/categories`, `/brands`, `/products`. Prices are TZS decimal strings and **tax-exclusive**.
+- `costPrice` is omitted unless the caller holds `catalogue:cost_read` (not CASHIER or TECHNICIAN).
+- `PATCH /products/:id`: price fields need `catalogue:price` (MANAGER, SYSTEM_ADMIN); other fields need `catalogue:write`. SKU and tracking policy are immutable.
 
 ## Conventions for new modules
 - Every route declares exactly one of `@Public()`, `@AuthenticatedOnly()` or `@RequirePermissions(PERMISSIONS.X)`; undeclared routes are denied.

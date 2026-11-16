@@ -17,7 +17,9 @@ Independent prototype for practical software-engineering demonstration and inter
 |---|---|
 | 1. Foundation (config, Prisma, API conventions, health, Swagger) | Done |
 | 2. Authentication & authorization (RBAC, branches, JWT + rotating refresh, audit) | Done |
-| 3. Catalogue, suppliers and procurement | Next (awaiting approval) |
+| 3. Product catalogue (categories, brands, products, price permissions) | Done |
+| 4. Procurement (suppliers, purchase orders, separation of duties) | Next (awaiting approval) |
+| 5. Inventory (receiving, serialized units, stock) | Planned |
 
 Progress and decisions: `docs/README.md` (change log) and `docs/04-architecture/07-architecture-decisions.md` (ADRs).
 

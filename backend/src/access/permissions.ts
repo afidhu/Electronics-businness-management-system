@@ -18,6 +18,10 @@ export const PERMISSIONS = {
   // Catalogue
   CATALOGUE_READ: 'catalogue:read',
   CATALOGUE_WRITE: 'catalogue:write',
+  /** Change prices of EXISTING products (Module 3, D5). */
+  CATALOGUE_PRICE: 'catalogue:price',
+  /** See cost prices in API responses (Module 3, D4). */
+  CATALOGUE_COST_READ: 'catalogue:cost_read',
   // Inventory
   INVENTORY_READ: 'inventory:read',
   INVENTORY_WRITE: 'inventory:write',
@@ -56,7 +60,10 @@ export const PERMISSION_DESCRIPTIONS: Record<PermissionKey, string> = {
   'branches:access_all': 'Access all branches without explicit assignment',
   'audit:read': 'View audit history',
   'catalogue:read': 'View categories, brands and products',
-  'catalogue:write': 'Create and update categories, brands and products',
+  'catalogue:write':
+    'Create categories, brands and products (incl. initial prices); update non-price fields',
+  'catalogue:price': 'Change cost/selling prices of existing products',
+  'catalogue:cost_read': 'See product cost prices',
   'inventory:read': 'View stock balances, serialized units and movements',
   'inventory:write': 'Maintain serialized unit records',
   'inventory:receive': 'Receive goods against purchase orders',
@@ -110,6 +117,7 @@ const READ_ONLY: PermissionKey[] = [
   P.BRANCHES_READ,
   P.AUDIT_READ,
   P.CATALOGUE_READ,
+  P.CATALOGUE_COST_READ,
   P.INVENTORY_READ,
   P.PROCUREMENT_READ,
   P.CUSTOMERS_READ,
@@ -140,6 +148,8 @@ export const ROLE_DEFINITIONS: readonly RoleDefinition[] = [
       P.BRANCHES_READ,
       P.AUDIT_READ,
       P.CATALOGUE_READ,
+      P.CATALOGUE_PRICE,
+      P.CATALOGUE_COST_READ,
       P.INVENTORY_READ,
       P.INVENTORY_ADJUST,
       P.INVENTORY_TRANSFER,
@@ -163,6 +173,7 @@ export const ROLE_DEFINITIONS: readonly RoleDefinition[] = [
       P.BRANCHES_READ,
       P.CATALOGUE_READ,
       P.CATALOGUE_WRITE,
+      P.CATALOGUE_COST_READ,
       P.INVENTORY_READ,
       P.INVENTORY_WRITE,
       P.INVENTORY_RECEIVE,
@@ -180,6 +191,7 @@ export const ROLE_DEFINITIONS: readonly RoleDefinition[] = [
     permissions: [
       P.BRANCHES_READ,
       P.CATALOGUE_READ,
+      P.CATALOGUE_COST_READ,
       P.INVENTORY_READ,
       P.INVENTORY_RECEIVE,
       P.PROCUREMENT_READ,

@@ -61,6 +61,7 @@ Discovery → SRS → diagrams/data model → repository/environment → authent
 ## Implementation status
 - **Module 1 (Foundation) — implemented 16 Nov 2026:** configuration, Prisma/PostgreSQL, API conventions, health check, Swagger, security baseline, error handling, pagination, money/time conventions and the test infrastructure. Decisions: ADR-008 to ADR-015 (`04-architecture/07-architecture-decisions.md`).
 
+- **Module 3 (Product Catalogue) — implemented 16 Nov 2026:** categories, brands, products, field-level price permissions, cost masking, catalogue audit, `db:seed:demo`. Proposal: `proposals/module-3-catalogue.md`; ADR-025 and ADR-026.
 - **Module 2 (Authentication & Authorization) — implemented 16 Nov 2026:** users, roles, permissions, branches, branch assignments, JWT + rotating refresh tokens, logout/revocation, brute-force protection, guards and an append-only audit log. Decisions: ADR-016 to ADR-020. Backend only; the frontend is not started.
 
 ## Document control
@@ -74,3 +75,4 @@ Treat this pack as a living baseline. Record changes with date, author, reason a
 | 16 Nov 2026 | Module 2 amendments: 30-day absolute session (ADR-021), access decisions (ADR-022), MANAGER `users:read`, doc 06 §6.4 approved, initial admin procedure (ops §12.8); ERD, data dictionary, SRS, API contract, user stories updated | Owner decisions after Module 2 review | Project owner |
 | 16 Nov 2026 | Moved into the monorepo under `docs/` (ADR-024); updated path references; recorded purchase separation of duties (ADR-023, BR-11, US-12, doc 06 §6.4) | Repository restructuring; owner decision | Project owner |
 | 16 Nov 2026 | Module 3 approved: proposal saved (`proposals/module-3-catalogue.md`); ADR-023 now Module 4; ADR-025/026; permission matrix (`catalogue:price`, `catalogue:cost_read`, §6.4a); ERD, class diagram, data dictionary, API contract, SRS (BR-12/13), user stories (US-03, US-13, US-14) | Module 3 decisions D1–D15 | Project owner |
+| 16 Nov 2026 | Module 3 implemented: test evidence (test strategy §10.7), traceability (Module 3), data dictionary implementation status | Module 3 completion | Pending owner review |

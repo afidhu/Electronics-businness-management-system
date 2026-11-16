@@ -21,7 +21,8 @@
     "postinstall": "prisma generate",
     "prisma:migrate": "prisma migrate dev && prisma generate",
     "prisma:status": "prisma migrate status",
-    "db:seed": "nest build && node dist/database/seed.js"
+    "db:seed": "nest build && node dist/database/seed.js",
+    "db:seed:demo": "nest build && node dist/database/seed-demo.js"
   },
   "dependencies": {
     "@nestjs/common": "^12.0.1",
