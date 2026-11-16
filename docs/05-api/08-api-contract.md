@@ -210,7 +210,7 @@ Login is limited to 5 requests per IP per minute (429 `RATE_LIMITED` with `Retry
 ## Procurement (Module 4; proposal `docs/proposals/module-4-procurement.md`)
 - Order money: TZS decimal strings, tax-exclusive. `subtotal` and `lineTotal` are always calculated by the server; client-sent totals are rejected.
 - Separation of duties: the creator and the submitter of an order can never approve or reject it (403 `SELF_APPROVAL_FORBIDDEN`), including SYSTEM_ADMIN. It is also enforced by a database CHECK.
-- **Module 5 hand-off:** `GET /purchases?status=APPROVED&branchId=…` lists orders ready for receiving. Each order exposes `createdBy` and `approvedBy`, so that Module 5 can block receiving by either (BR-14), plus `quantityOrdered` and `quantityReceived` per line.
+- **Module 5 hand-off:** `GET /purchases?status=APPROVED&branchId=…` lists orders ready for receiving. Each order exposes `createdBy` and `approvedBy`, so that Module 5 can block receiving by either (BR-14), plus `quantityOrdered` and `quantityReceived` per line. Each line also exposes its `id` (the `purchaseItemId` used by receiving) and the product's `identifierType` and `identifiersPerUnit`, so the receiving screen knows how many IMEIs or serials each unit needs (added 16 Nov 2026 for the frontend; additive).
 
 ## Inventory (Module 5, stage 5.1; proposal `docs/proposals/module-5-inventory.md`)
 **Receive:** `POST /purchases/:id/receive`
