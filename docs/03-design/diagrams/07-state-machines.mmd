@@ -1,0 +1,21 @@
+stateDiagram-v2
+  [*] --> DRAFT
+  DRAFT --> SUBMITTED
+  SUBMITTED --> PARTIALLY_RECEIVED
+  SUBMITTED --> RECEIVED
+  PARTIALLY_RECEIVED --> RECEIVED
+  DRAFT --> CANCELLED
+  SUBMITTED --> CANCELLED
+
+  state "Serialized unit lifecycle" as Unit {
+    [*] --> IN_STOCK
+    IN_STOCK --> RESERVED
+    RESERVED --> IN_STOCK: release
+    RESERVED --> SOLD: checkout
+    IN_STOCK --> SOLD: checkout
+    SOLD --> RETURNED: approved return
+    RETURNED --> IN_STOCK: inspected and restocked
+    SOLD --> UNDER_REPAIR: accepted claim
+    UNDER_REPAIR --> SOLD: repaired / returned to customer
+    IN_STOCK --> WRITTEN_OFF: approved write-off
+  }

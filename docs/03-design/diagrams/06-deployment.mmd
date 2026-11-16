@@ -1,0 +1,20 @@
+flowchart TB
+  User[Staff browser]
+  DNS[DNS]
+  subgraph Host[Ubuntu Linux server]
+    Proxy[HTTPS reverse proxy<br/>Nginx or Caddy]
+    subgraph Docker[Docker network]
+      Web[Frontend container<br/>static React build]
+      API[NestJS API container]
+      DB[(PostgreSQL container<br/>persistent volume)]
+    end
+    Backup[Encrypted backup target<br/>off-host storage]
+    Logs[Application / proxy logs]
+  end
+  User --> DNS -->|HTTPS 443| Proxy
+  Proxy -->|/| Web
+  Proxy -->|/api| API
+  API --> DB
+  DB --> Backup
+  Proxy --> Logs
+  API --> Logs

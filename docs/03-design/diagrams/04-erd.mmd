@@ -1,0 +1,200 @@
+erDiagram
+  ROLE ||--o{ USER : assigned
+  ROLE ||--o{ ROLE_PERMISSION : grants
+  PERMISSION ||--o{ ROLE_PERMISSION : granted_by
+  BRANCH ||--o{ USER_BRANCH : grants
+  USER ||--o{ USER_BRANCH : belongs
+  USER ||--o{ REFRESH_TOKEN : sessions
+  REFRESH_TOKEN |o--o| REFRESH_TOKEN : replaced_by
+  BRANCH ||--o{ AUDIT_LOG : scoped_to
+  CATEGORY ||--o{ PRODUCT : groups
+  BRAND ||--o{ PRODUCT : identifies
+  PRODUCT ||--o{ PRODUCT_UNIT : has
+  PRODUCT ||--o{ STOCK_BALANCE : summarized
+  BRANCH ||--o{ STOCK_BALANCE : holds
+  SUPPLIER ||--o{ PURCHASE : receives
+  BRANCH ||--o{ PURCHASE : destination
+  PURCHASE ||--|{ PURCHASE_ITEM : contains
+  PRODUCT ||--o{ PURCHASE_ITEM : ordered
+  PURCHASE ||--o{ GOODS_RECEIPT : received_as
+  GOODS_RECEIPT ||--|{ STOCK_MOVEMENT : creates
+  PRODUCT ||--o{ STOCK_MOVEMENT : movement_for
+  BRANCH ||--o{ STOCK_MOVEMENT : location
+  CUSTOMER ||--o{ SALE : makes
+  USER ||--o{ SALE : cashier
+  BRANCH ||--o{ SALE : branch
+  SALE ||--|{ SALE_ITEM : contains
+  PRODUCT ||--o{ SALE_ITEM : sold_as
+  PRODUCT_UNIT o|--o| SALE_ITEM : serialized_unit
+  SALE ||--o{ PAYMENT : paid_by
+  SALE ||--o{ WARRANTY : may_create
+  PRODUCT_UNIT ||--o{ WARRANTY : covered_unit
+  CUSTOMER ||--o{ WARRANTY : beneficiary
+  USER ||--o{ AUDIT_LOG : performs
+
+  ROLE {
+    uuid id PK
+    string key UK "SYSTEM_ADMIN, MANAGER, ..."
+    string name
+    int max_branches "null = unlimited"
+    boolean is_system
+  }
+  PERMISSION {
+    uuid id PK
+    string key UK "e.g. sales:create"
+    string description
+  }
+  ROLE_PERMISSION {
+    uuid role_id PK,FK
+    uuid permission_id PK,FK
+  }
+  USER {
+    uuid id PK
+    string email UK "normalised lower-case"
+    string full_name
+    string password_hash "Argon2id"
+    uuid role_id FK
+    boolean is_active
+    int failed_login_attempts
+    datetime locked_until
+    datetime last_login_at
+    datetime password_changed_at
+  }
+  BRANCH {
+    uuid id PK
+    string code UK "upper-case, immutable"
+    string name
+    string address
+    string phone
+    boolean is_active
+  }
+  USER_BRANCH {
+    uuid user_id PK,FK
+    uuid branch_id PK,FK
+    uuid assigned_by_id FK
+    datetime assigned_at
+  }
+  REFRESH_TOKEN {
+    uuid id PK
+    uuid user_id FK
+    string token_hash UK "SHA-256 hex"
+    uuid family_id "one login session"
+    datetime expires_at "<= session_expires_at"
+    datetime session_expires_at "login + 30 days, copied on rotation"
+    datetime revoked_at
+    string revoked_reason
+    uuid replaced_by_id FK,UK
+  }
+  CATEGORY {
+    uuid id PK
+    string name UK
+  }
+  BRAND {
+    uuid id PK
+    string name UK
+  }
+  PRODUCT {
+    uuid id PK
+    string sku UK
+    string name
+    string tracking_mode
+    decimal cost_price
+    decimal selling_price
+    uuid category_id FK
+    uuid brand_id FK
+  }
+  PRODUCT_UNIT {
+    uuid id PK
+    uuid product_id FK
+    string serial_number UK
+    string status
+    uuid branch_id FK
+  }
+  STOCK_BALANCE {
+    uuid id PK
+    uuid product_id FK
+    uuid branch_id FK
+    decimal quantity
+    decimal reserved_quantity
+  }
+  SUPPLIER {
+    uuid id PK
+    string name
+    string phone
+  }
+  PURCHASE {
+    uuid id PK
+    uuid supplier_id FK
+    uuid branch_id FK
+    string status
+    string reference UK
+  }
+  PURCHASE_ITEM {
+    uuid id PK
+    uuid purchase_id FK
+    uuid product_id FK
+    decimal quantity
+    decimal unit_cost
+  }
+  GOODS_RECEIPT {
+    uuid id PK
+    uuid purchase_id FK
+    string receipt_reference UK
+  }
+  STOCK_MOVEMENT {
+    uuid id PK
+    uuid product_id FK
+    uuid branch_id FK
+    string movement_type
+    decimal quantity_delta
+    string source_reference
+  }
+  CUSTOMER {
+    uuid id PK
+    string name
+    string phone
+  }
+  SALE {
+    uuid id PK
+    string receipt_number UK
+    uuid customer_id FK
+    uuid cashier_id FK
+    uuid branch_id FK
+    decimal total
+    string status
+  }
+  SALE_ITEM {
+    uuid id PK
+    uuid sale_id FK
+    uuid product_id FK
+    uuid product_unit_id FK
+    decimal quantity
+    decimal unit_price
+  }
+  PAYMENT {
+    uuid id PK
+    uuid sale_id FK
+    string method
+    decimal amount
+    string reference
+  }
+  WARRANTY {
+    uuid id PK
+    uuid sale_id FK
+    uuid product_unit_id FK
+    uuid customer_id FK
+    date start_date
+    date end_date
+  }
+  AUDIT_LOG {
+    uuid id PK
+    uuid actor_id FK "null for anonymous events"
+    string action
+    string entity_type
+    uuid entity_id
+    uuid branch_id FK "branch scoping"
+    json metadata "no secrets"
+    string ip_address
+    string request_id
+    datetime created_at "append-only (DB trigger)"
+  }

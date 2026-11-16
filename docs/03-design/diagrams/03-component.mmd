@@ -1,0 +1,21 @@
+flowchart TB
+  subgraph Frontend[React frontend]
+    Pages[Feature pages]
+    Client[Typed API client]
+    State[Session and UI state]
+    Pages --> Client
+    Pages --> State
+  end
+  subgraph Backend[NestJS modular monolith]
+    Guards[Auth and permission guards]
+    Controllers[REST controllers]
+    Services[Business services]
+    Prisma[Prisma data access]
+    Modules[Auth / Users / Catalogue / Inventory / Purchases / Sales / Warranty / Reports / Audit]
+    Guards --> Controllers --> Services --> Prisma
+    Modules --- Controllers
+    Modules --- Services
+  end
+  DB[(PostgreSQL)]
+  Client <-->|HTTPS| Guards
+  Prisma --> DB

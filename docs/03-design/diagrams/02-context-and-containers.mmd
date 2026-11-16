@@ -1,0 +1,15 @@
+flowchart TB
+  Staff[Staff users<br/>Admin / Manager / Inventory / Cashier]
+  Browser[Web browser]
+  subgraph System[ElectroCore EBMS]
+    Web[React + TypeScript SPA]
+    API[NestJS REST API<br/>Modular monolith]
+    DB[(PostgreSQL)]
+  end
+  Ops[Operations<br/>Ubuntu / Docker / Reverse proxy]
+  Staff --> Browser --> Web
+  Web <-->|HTTPS JSON REST| API
+  API <-->|Prisma ORM| DB
+  Ops -. hosts .-> Web
+  Ops -. hosts .-> API
+  Ops -. hosts .-> DB

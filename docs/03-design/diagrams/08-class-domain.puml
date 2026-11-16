@@ -1,0 +1,45 @@
+@startuml
+skinparam classAttributeIconSize 0
+class User { +id: UUID +email: string +fullName: string +passwordHash: string +isActive: boolean +failedLoginAttempts: int +lockedUntil: DateTime +passwordChangedAt: DateTime }
+class Role { +id: UUID +key: string +name: string +maxBranches: int? }
+class Permission { +id: UUID +key: string +description: string }
+class RefreshToken { +tokenHash: string +familyId: UUID +expiresAt: DateTime +sessionExpiresAt: DateTime +revokedAt: DateTime? +revokedReason: string? }
+class Branch { +id: UUID +code: string +name: string +isActive: boolean }
+class Product { +id: UUID +sku: string +name: string +trackingMode: TrackingMode +sellingPrice: Decimal }
+class ProductUnit { +id: UUID +serialNumber: string +status: UnitStatus }
+class StockBalance { +quantity: Decimal +reservedQuantity: Decimal }
+class StockMovement { +movementType: string +quantityDelta: Decimal +createdAt: DateTime }
+class Supplier { +id: UUID +name: string }
+class Purchase { +id: UUID +reference: string +status: PurchaseStatus }
+class PurchaseItem { +quantity: Decimal +unitCost: Decimal }
+class Customer { +id: UUID +name: string +phone: string }
+class Sale { +id: UUID +receiptNumber: string +status: SaleStatus +total: Decimal }
+class SaleItem { +quantity: Decimal +unitPrice: Decimal }
+class Payment { +method: string +amount: Decimal +reference: string }
+class Warranty { +startDate: Date +endDate: Date }
+class AuditLog { +action: string +entityType: string +entityId: UUID? +branchId: UUID? +metadata: JSON +requestId: string +createdAt: DateTime }
+
+Role "1" -- "0..*" User
+Role "0..*" -- "0..*" Permission : grants
+User "0..*" -- "0..*" Branch : assigned
+User "1" -- "0..*" RefreshToken : sessions
+RefreshToken "0..1" -- "0..1" RefreshToken : replacedBy
+Branch "1" -- "0..*" StockBalance
+Product "1" -- "0..*" StockBalance
+Product "1" -- "0..*" ProductUnit
+Product "1" -- "0..*" StockMovement
+Branch "1" -- "0..*" StockMovement
+Supplier "1" -- "0..*" Purchase
+Purchase "1" -- "1..*" PurchaseItem
+Product "1" -- "0..*" PurchaseItem
+Customer "0..1" -- "0..*" Sale
+User "1" -- "0..*" Sale : cashier
+Branch "1" -- "0..*" Sale
+Sale "1" -- "1..*" SaleItem
+Product "1" -- "0..*" SaleItem
+Sale "1" -- "0..*" Payment
+Sale "1" -- "0..*" Warranty
+ProductUnit "0..1" -- "0..1" SaleItem
+User "0..1" -- "0..*" AuditLog : actor
+Branch "0..1" -- "0..*" AuditLog : scope
+@enduml

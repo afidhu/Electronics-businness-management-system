@@ -1,0 +1,23 @@
+sequenceDiagram
+  actor Cashier
+  participant UI as React POS
+  participant API as NestJS Sales Controller
+  participant Svc as Sales Service
+  participant DB as PostgreSQL
+  Cashier->>UI: Submit cart and payment
+  UI->>API: POST /sales
+  API->>API: Authenticate and authorize
+  API->>Svc: createSale(command)
+  Svc->>DB: BEGIN transaction
+  Svc->>DB: Validate price, branch and stock
+  alt Serialized unit
+    Svc->>DB: Conditional update unit IN_STOCK -> SOLD
+  else Quantity stock
+    Svc->>DB: Conditional decrement where available >= qty
+  end
+  Svc->>DB: Insert sale, items, payment, movements, audit
+  Svc->>DB: COMMIT
+  DB-->>Svc: Persisted sale
+  Svc-->>API: Receipt DTO
+  API-->>UI: 201 Created + receipt
+  UI-->>Cashier: Display/print receipt

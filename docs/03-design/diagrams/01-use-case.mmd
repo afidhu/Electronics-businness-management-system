@@ -1,0 +1,42 @@
+flowchart LR
+  Admin[System Administrator]
+  Manager[Manager]
+  Inventory[Inventory Officer]
+  Buyer[Procurement Officer]
+  Cashier[Cashier / Salesperson]
+  Tech[Technician - later]
+  Customer[Customer - external]
+
+  subgraph EBMS[ElectroCore EBMS]
+    UC1((Manage users and roles))
+    UC2((Manage branches))
+    UC3((Manage products, brands and categories))
+    UC4((Manage suppliers))
+    UC5((Create purchase orders))
+    UC6((Receive goods))
+    UC7((Manage stock and transfers))
+    UC8((Process POS sale))
+    UC9((Manage customers))
+    UC10((Print receipt))
+    UC11((View reports))
+    UC12((Manage warranty claim))
+    UC13((Manage repair job - later))
+    UC14((View audit log))
+  end
+  Admin --> UC1
+  Admin --> UC2
+  Admin --> UC14
+  Manager --> UC11
+  Manager --> UC7
+  Manager --> UC14
+  Inventory --> UC3
+  Inventory --> UC6
+  Inventory --> UC7
+  Buyer --> UC4
+  Buyer --> UC5
+  Cashier --> UC8
+  Cashier --> UC9
+  Cashier --> UC10
+  Tech --> UC12
+  Tech --> UC13
+  Customer -. receives .-> UC10
