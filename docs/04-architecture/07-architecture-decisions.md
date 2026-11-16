@@ -49,7 +49,7 @@ ADR-008 onward were approved by the project owner on 16 Nov 2026, while the back
 
 ## ADR-008: Node.js 24 LTS runtime
 **Status:** Accepted (16 Nov 2026).  
-**Decision:** EBMS runs on Node.js 24 LTS (24.22.3, pinned in `EBMS/.nvmrc`; `engines.node >= 24.9.0` in the backend). Jest is started with `node --experimental-vm-modules` (backend `npm test` scripts). Node.js 22 stays installed through nvm as a fallback and remains the machine default for other projects.  
+**Decision:** EBMS runs on Node.js 24 LTS (24.22.3, pinned in `.nvmrc` at the repository root; `engines.node >= 24.9.0` in the backend). Jest is started with `node --experimental-vm-modules` (backend `npm test` scripts). Node.js 22 stays installed through nvm as a fallback and remains the machine default for other projects.  
 **Reason:** NestJS 12 ships only as ES modules. Jest 30 can load ES modules from CommonJS test code only on Node ≥ 24.9 **and** with the VM-modules flag. On Node 22 every test suite failed before running.  
 **Trade-off:** The flag prints an `ExperimentalWarning`. The app builds and runs on Node 22, but its tests do not. Revisit when Jest supports this without the flag.
 
@@ -195,3 +195,23 @@ The project owner approved the roles, branch access and authentication strategy 
 - Confirmed unchanged: `procurement:approve`, `sales:discount` and `sales:return` are held only by MANAGER and SYSTEM_ADMIN, and audit visibility is branch-scoped with global login events admin-only.
 - Procurement officers must never approve purchase orders. Module 3 enforces this in the workflow; whether an admin may approve their own PO is to be confirmed.
 - The initial administrator is `admin@gmail.com` (SYSTEM_ADMIN), created by `npm run db:seed` with a randomly generated temporary password supplied through `SEED_ADMIN_PASSWORD`. That password is never stored in Git, logs or documentation.
+
+## ADR-023: Separation of duties for purchase-order approval
+**Status:** Accepted (16 Nov 2026). Implementation is scheduled for **Module 3**.  
+**Decision:**
+- Procurement officers create purchase orders. Only holders of `procurement:approve` (MANAGER, SYSTEM_ADMIN) may approve or reject them, and only for branches within their scope (ADR-019).
+- **The creator of a purchase order can never approve or reject it, regardless of role.** This includes SYSTEM_ADMIN and MANAGER, even though SYSTEM_ADMIN holds every permission. The check compares the PO's `createdBy` with the acting user inside the approval transaction; on mismatch the request fails with 403.
+- Approval and rejection are recorded in the audit log (actor, PO, branch, outcome, rejection reason).
+- Business rule BR-11, user story US-12.  
+**Reason:** Owner decision. Standard procurement control against self-authorised purchases.  
+**Consequence:** A deployment needs at least two people with purchasing roles (a creator and a different approver).
+
+## ADR-024: Single repository (monorepo) for backend, frontend and docs
+**Status:** Accepted (16 Nov 2026).  
+**Decision:**
+- One Git repository rooted at the project folder: `backend/`, `frontend/`, `docs/`, `.nvmrc` and `.gitignore`.
+- The backend's existing history is preserved: commit `3bbd1b6` is kept with its original hash, and the move into `backend/` is a pure-rename commit, so `git log --follow` works across it.
+- The documentation moved unchanged into `docs/` (SHA-256 verified) before path references were updated in a separate commit.
+- The root `.gitignore` excludes `.env*` (except `.env.example`), keys, `node_modules/`, build output, coverage, `*.tsbuildinfo`, the generated Prisma client, logs and editor/office lock files.
+- A mirror backup of the pre-move backend history is kept outside the repository (`../_backups/backend-history-20261116.git`).  
+**Reason:** One history for code and its documentation keeps them synchronised and reviewable together.

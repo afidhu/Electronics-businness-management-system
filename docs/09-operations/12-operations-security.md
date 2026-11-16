@@ -80,8 +80,8 @@ Use request IDs to correlate UI/API/proxy logs. Do not log passwords, tokens, fu
 - Create the first administrator with `npm run db:seed`, using `SEED_ADMIN_*`, then remove `SEED_ADMIN_PASSWORD` from the environment.
 
 ## 12.8 Initial administrator and first login
-- The first administrator (`admin@gmail.com`, SYSTEM_ADMIN) is created by `npm run db:seed` from `SEED_ADMIN_EMAIL` / `SEED_ADMIN_PASSWORD` in the git-ignored `EBMS/backend/.env` (file mode 600). Seeding never prints the password and does nothing if the account already exists.
-- **Retrieve the temporary password** on the server, in your own terminal (not in shared chat or tickets): `grep '^SEED_ADMIN_PASSWORD' EBMS/backend/.env`.
+- The first administrator (`admin@gmail.com`, SYSTEM_ADMIN) is created by `npm run db:seed` from `SEED_ADMIN_EMAIL` / `SEED_ADMIN_PASSWORD` in the git-ignored `backend/.env` (file mode 600). Seeding never prints the password and does nothing if the account already exists.
+- **Retrieve the temporary password** on the server, in your own terminal (not in shared chat or tickets): `grep '^SEED_ADMIN_PASSWORD' backend/.env`.
 - **First login:** sign in, then immediately call `POST /api/v1/auth/change-password` with the temporary password as `currentPassword` and a new passphrase (≥ 12 characters; ideally from a password manager). This revokes all sessions; sign in again with the new password.
 - **Then remove the temporary password** from `.env` (delete the value of `SEED_ADMIN_PASSWORD`). It is only read by the seed command.
 - **Lost or compromised password:** another SYSTEM_ADMIN can reset it (`POST /users/:id/password`). If no other admin exists, set a new strong `SEED_ADMIN_PASSWORD`, set the admin's password hash with a one-off script (or recreate the account under a new email with `db:seed`), and record the incident (§12.4).

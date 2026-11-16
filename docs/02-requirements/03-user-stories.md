@@ -40,6 +40,12 @@
 - Duplicate SKU is rejected.
 - Inactive products cannot be used in new purchases/sales.
 
+**US-12 — Approve purchase orders (separation of duties):** As a manager, I want to approve or reject purchase orders created by others, so no one can authorise their own purchase. *(Module 3)*
+- Only users with `procurement:approve` (MANAGER, SYSTEM_ADMIN) can approve or reject.
+- The creator of a purchase order cannot approve or reject it, whatever their role (403).
+- Approval and rejection record who acted, when, and the reason (for rejection) in the audit log.
+- Approval is limited to purchase orders of branches within the approver's scope.
+
 ## Inventory receiving
 **US-04 — Receive stock:** As an inventory officer, I want to receive goods against a purchase.
 - User selects branch and purchase.

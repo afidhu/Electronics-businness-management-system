@@ -37,7 +37,7 @@ Create production secrets outside source control:
 - `SWAGGER_ENABLED` (default `false` in production)
 - any email/SMS credentials if later added
 
-The API checks all of these at startup and refuses to start if any is missing or invalid (ADR-010). `SHADOW_DATABASE_URL` is for development only and is not needed in production. See `EBMS/backend/.env.example` for the full list.
+The API checks all of these at startup and refuses to start if any is missing or invalid (ADR-010). `SHADOW_DATABASE_URL` is for development only and is not needed in production. See `backend/.env.example` for the full list.
 
 Never copy development secrets to production. Use strong unique secrets and rotate them if exposed.
 

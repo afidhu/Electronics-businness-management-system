@@ -44,9 +44,9 @@
 Do not deploy a release if critical tests fail, migrations are unreviewed, production secrets are missing, backups have not been configured, or known critical security vulnerabilities remain unresolved.
 
 ## 10.5 Test environment and commands (implemented, Module 1)
-- **Runtime:** Node.js 24 (`nvm use` in `EBMS/`). Jest runs with `--experimental-vm-modules` (ADR-008).
+- **Runtime:** Node.js 24 (`nvm use` at the repository root). Jest runs with `--experimental-vm-modules` (ADR-008).
 - **Database isolation (ADR-014):** tests use only `electrocore_test_db`, configured in a git-ignored `backend/.env.test`. Jest refuses to run against any database whose name does not end in `_test_db`. The e2e global setup applies migrations with `prisma migrate deploy` only. The development database is never touched.
-- **Commands (from `EBMS/backend`):** `npm test` (unit), `npm run test:e2e` (API + database, run in band), `npm run lint`, `npx tsc --noEmit`, `npm run build`.
+- **Commands (from `backend/`):** `npm test` (unit), `npm run test:e2e` (API + database, run in band), `npm run lint`, `npx tsc --noEmit`, `npm run build`.
 - **Module 1 evidence:** 76 unit tests (config validation, error filter and Prisma error mapping, response envelope, pagination, validation and money, business time, request ID, health service, test-DB guard) and 21 e2e tests (health with database, request IDs, security headers, removed demo routes, 404/500/400 error shapes with no internals leaked, validation details, pagination bounds, CORS allow-list, OpenAPI document, test-DB connection, UTC session, applied migrations).
 
 ## 10.6 Module 2 evidence (authentication & authorization)

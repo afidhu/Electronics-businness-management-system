@@ -45,7 +45,7 @@ This is a logical model, not a final Prisma schema. Field types, nullability and
 - StockMovement should be append-only for normal application users.
 
 ## Physical conventions (approved 16 Nov 2026 — ADR-009, ADR-011)
-These apply to every table added to `EBMS/backend/prisma/schema.prisma`.
+These apply to every table added to `backend/prisma/schema.prisma`.
 - **Money:** `Decimal(14,2)` (`@db.Decimal(14, 2)`), in the operating currency (TZS by default). Exchanged in the API as decimal strings.
 - **Timestamps:** `DateTime @db.Timestamptz(3)`, stored in UTC. The database session timezone is UTC.
 - **Business dates** (e.g. warranty start/end) are derived in the business timezone (Africa/Dar_es_Salaam by default). Whether they are stored as `@db.Date` or derived from timestamps will be decided per module.

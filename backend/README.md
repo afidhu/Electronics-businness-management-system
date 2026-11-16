@@ -1,17 +1,17 @@
 # ElectroCore EBMS — Backend API
 
 NestJS 12 modular monolith + Prisma 7 + PostgreSQL. Project documentation lives in
-`../../ElectroCore_EBMS_Documentation` (architecture decisions: `04-architecture/`, API contract: `05-api/`).
+`../docs` (architecture decisions: `04-architecture/`, API contract: `05-api/`).
 
 > Independent prototype for software-engineering demonstration; not an officially commissioned system.
 
 ## Requirements
-- **Node.js 24 LTS** — run `nvm use` in `EBMS/` (reads `.nvmrc`). Node 22 can build and run the app, but tests need Node ≥ 24.9 (ADR-008).
+- **Node.js 24 LTS** — run `nvm use` at the repository root (reads `.nvmrc`). Node 22 can build and run the app, but tests need Node ≥ 24.9 (ADR-008).
 - **PostgreSQL** (developed against local PostgreSQL 17).
 
 ## Setup
 ```bash
-cd EBMS && nvm use && cd backend
+nvm use && cd backend      # from the repository root
 npm ci                      # also runs `prisma generate` (postinstall)
 cp .env.example .env        # then fill in real values — never commit .env
 ```
@@ -107,7 +107,7 @@ test/                e2e specs, test-env guard, global setup
 ## Authentication & authorization (Module 2)
 - `POST /api/v1/auth/login` returns an access token (15 min, keep in memory) and sets the `ebms_refresh` HttpOnly cookie (7 days).
 - `POST /auth/refresh` and `/auth/logout` need the cookie **and** the header `X-Requested-With: XMLHttpRequest`.
-- Roles, permissions and branch rules: `../../ElectroCore_EBMS_Documentation/02-requirements/06-permission-matrix.md`. ADRs 016–020 cover the design.
+- Roles, permissions and branch rules: `../docs/02-requirements/06-permission-matrix.md`. ADRs 016–020 cover the design.
 
 ## Conventions for new modules
 - Every route declares exactly one of `@Public()`, `@AuthenticatedOnly()` or `@RequirePermissions(PERMISSIONS.X)`; undeclared routes are denied.

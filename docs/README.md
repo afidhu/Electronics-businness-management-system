@@ -1,5 +1,6 @@
 # ElectroCore EBMS — Complete System Documentation
 
+**Repository location:** `docs/` of the ElectroCore EBMS monorepo (ADR-024).  
 **Product:** ElectroCore EBMS (Electronics Business Management System)  
 **Version:** 0.1 (proposed baseline)  
 **Prepared:** 16 November 2026  
@@ -71,3 +72,4 @@ Treat this pack as a living baseline. Record changes with date, author, reason a
 | 16 Nov 2026 | Added ADR-008–015; updated API contract (conventions, health, error codes), data dictionary (physical conventions), SRS §2.8, test strategy §10.5, deployment guide env vars, traceability evidence | Module 1 implementation decisions | Project owner |
 | 16 Nov 2026 | Module 2: added doc 06 permission matrix and ADR-016–020; updated ERD, class diagram, data dictionary, API contract, user stories (US-01/02, new US-09–11), SRS §2.8, test strategy §10.6, traceability, deployment guide, operations §12.7 | Module 2 implementation decisions | Project owner |
 | 16 Nov 2026 | Module 2 amendments: 30-day absolute session (ADR-021), access decisions (ADR-022), MANAGER `users:read`, doc 06 §6.4 approved, initial admin procedure (ops §12.8); ERD, data dictionary, SRS, API contract, user stories updated | Owner decisions after Module 2 review | Project owner |
+| 16 Nov 2026 | Moved into the monorepo under `docs/` (ADR-024); updated path references; recorded purchase separation of duties (ADR-023, BR-11, US-12, doc 06 §6.4) | Repository restructuring; owner decision | Project owner |

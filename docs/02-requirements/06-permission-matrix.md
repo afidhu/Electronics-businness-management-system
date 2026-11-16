@@ -1,7 +1,7 @@
 # 6. Role & Permission Matrix
 
 **Status:** Approved by the project owner on 16 Nov 2026 (roles, branch access, and the §6.4 decisions); implemented in Module 2.
-**Source of truth in code:** `EBMS/backend/src/access/permissions.ts`. The database is seeded from that file (`npm run db:seed`). If this document and the code ever differ, the code is what runs, and this document must be corrected.
+**Source of truth in code:** `backend/src/access/permissions.ts`. The database is seeded from that file (`npm run db:seed`). If this document and the code ever differ, the code is what runs, and this document must be corrected.
 
 ## 6.1 Principles
 - **Permission-based, not role-name-based (ADR-016).** Authorization checks permission keys such as `sales:create`, never role names. Roles are bundles of permissions.
@@ -59,7 +59,7 @@ Branch-scoped roles must have at least one active branch. `SYSTEM_ADMIN` must ha
 | `reports:inventory` | Inventory reports *(future)* | ✓ | ✓ | | | | | ✓ |
 
 ## 6.4 Approved business decisions (16 Nov 2026)
-1. **Purchase approval:** MANAGER and SYSTEM_ADMIN hold `procurement:approve`. PROCUREMENT_OFFICER can create purchase orders but cannot approve them, including their own. *Module 3 will enforce this in the purchase workflow. Whether a SYSTEM_ADMIN may approve a PO they created themselves is to be confirmed during Module 3 planning.*
+1. **Purchase approval and separation of duties:** MANAGER and SYSTEM_ADMIN hold `procurement:approve`. PROCUREMENT_OFFICER creates purchase orders and never approves them. **The creator of a purchase order can never approve (or reject) it, whatever their role**, including SYSTEM_ADMIN and MANAGER (decided 16 Nov 2026, ADR-023). Approval and rejection are audited. *To be implemented in Module 3.*
 2. **Discounts and returns:** only MANAGER and SYSTEM_ADMIN hold `sales:discount` and `sales:return`. Detailed discount limits and return rules belong to the sales and returns modules.
 3. **Staff list:** SYSTEM_ADMIN manages all users (`users:write`). MANAGER has `users:read` and sees only staff assigned to at least one of their branches. Managers cannot create, update, deactivate or reset passwords.
 4. **Audit visibility:** SYSTEM_ADMIN sees all audit events. MANAGER and AUDITOR see only events tied to their authorised branches. Global events with no branch (logins, logouts, token reuse, password changes) are visible only to SYSTEM_ADMIN.

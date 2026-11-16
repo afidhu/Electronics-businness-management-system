@@ -78,6 +78,7 @@ Administrator, Manager, Inventory Officer, Procurement Officer, Cashier/Salesper
 - FR-ADM-02 (Must): Audit events record actor, action, entity, timestamp and safe metadata.
 
 ## 2.5 Business rules
+- BR-11 *(16 Nov 2026)*: Separation of duties: a purchase order cannot be approved or rejected by the user who created it, regardless of role. Approval and rejection are recorded in the audit log.
 - BR-01: Completed sale cannot make available stock negative.
 - BR-02: A serialized unit is uniquely identifiable and sold at most once.
 - BR-03: Product model and physical product unit are distinct records.
@@ -128,7 +129,7 @@ Administrator, Manager, Inventory Officer, Procurement Officer, Cashier/Salesper
 | Runtime | Node.js 24 LTS | ADR-008 |
 | Roles & permissions | 7 system roles, 29 permission keys, fail-closed guards | ADR-016, doc 06 |
 | Authentication | 15-min JWT access token; 7-day rotating refresh token (hashed, HttpOnly cookie); **30-day absolute session maximum**; Argon2id; rate limit + lockout | ADR-017, ADR-018, ADR-021 |
-| Purchase approval | MANAGER and SYSTEM_ADMIN approve; procurement officers create but never approve | doc 06 §6.4 |
+| Purchase approval | MANAGER and SYSTEM_ADMIN approve; procurement officers create but never approve; **the creator of a PO can never approve or reject it, regardless of role**; approvals and rejections are audited (Module 3) | doc 06 §6.4, ADR-023 |
 | Discounts & returns | Authorised only by MANAGER and SYSTEM_ADMIN; limits/rules in later modules | doc 06 §6.4 |
 | Staff visibility | SYSTEM_ADMIN manages all users; MANAGER views staff of own branches only | doc 06 §6.4 |
 | Audit visibility | SYSTEM_ADMIN all; MANAGER/AUDITOR own branches; global login events admin-only | doc 06 §6.4, ADR-020 |

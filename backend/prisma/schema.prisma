@@ -1,5 +1,5 @@
 // ElectroCore EBMS — Prisma schema.
-// Domain models are added module by module (see ElectroCore_EBMS_Documentation).
+// Domain models are added module by module (see docs/).
 // The connection URL is supplied by prisma.config.ts (Prisma 7), not here.
 //
 // Conventions (ADR-011, data dictionary "Physical conventions"):
