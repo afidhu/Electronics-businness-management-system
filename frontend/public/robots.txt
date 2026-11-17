@@ -1,0 +1,6 @@
+# ElectroCore EBMS — allow link-preview crawlers (WhatsApp, Facebook, LinkedIn,
+# Telegram, X) to read the page metadata and the share image.
+# The application itself is behind a sign-in; the API is not crawlable.
+User-agent: *
+Allow: /
+Disallow: /api/
