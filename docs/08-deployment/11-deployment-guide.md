@@ -95,3 +95,20 @@ Never copy development secrets to production. Use strong unique secrets and rota
 - After deploying, refresh the preview caches:
   - **Facebook / WhatsApp:** Sharing Debugger → "Scrape Again";
   - **LinkedIn:** Post Inspector.
+
+## Backend on Vercel / AWS Lambda: `NODE_OPTIONS` (added 17 Nov 2026)
+
+The backend compiles to CommonJS (`module: nodenext`, no `"type": "module"`),
+while NestJS 12 packages are ESM-only. CommonJS loads them through Node's
+`require(esm)`, which AWS Lambda (and therefore Vercel Functions) disables by
+default on its Node 20/22/24 runtimes. The symptom is:
+
+    Error [ERR_REQUIRE_ESM]: require() of ES Module .../@nestjs/common/index.js
+
+Set this environment variable on the backend project (all environments), then
+redeploy. This is the remedy given in the NestJS 11→12 migration guide:
+
+    NODE_OPTIONS=--experimental-require-module
+
+If `NODE_OPTIONS` already has flags, append this one. No code change is needed,
+and a container/VM deployment (11.1) on Node ≥ 24.9 does not need it.
