@@ -65,12 +65,4 @@ export default defineConfig(({ mode }) => {
       proxy: { '/api': { target, changeOrigin: false } },
     },
   }
-export default defineConfig({
-  plugins: [react()],
-  server: {
-    proxy: { '/api': { target, changeOrigin: false } },
-  },
-  preview: {
-    proxy: { '/api': { target, changeOrigin: false } },
-  },
 })

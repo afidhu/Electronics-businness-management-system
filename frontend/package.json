@@ -11,7 +11,7 @@
     "test": "vite build --config vite.test.config.ts --logLevel warn && node --test \".test-dist/**/*.test.mjs\"",
     "e2e": "node e2e/browser.ts",
     "preview": "vite preview",
-    "og:thumbnail": "node branding/render.mjs"
+    "og:thumbnail": "node branding/render.mjs",
     "preview": "vite preview"
   },
   "dependencies": {
