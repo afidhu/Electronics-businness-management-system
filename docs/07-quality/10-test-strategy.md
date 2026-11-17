@@ -118,3 +118,151 @@ Do not deploy a release if critical tests fail, migrations are unreviewed, produ
   - all code was restored
 - **Stability:** 3/3 consecutive runs green.
 - **Not run:** `npm audit` could not reach the registry (network error). No dependencies were added in Module 5.
+
+## 10.10 Module 6 stages 6.1–6.2 evidence (POS schema, VAT settings, customers)
+- **Totals after stage 6.2:** **226 unit** and **335 e2e** tests, all passing (Modules 1–5 unchanged).
+- **6.1 `pos-schema.e2e-spec.ts` (26):** every POS database rule on direct writes:
+  - whole-sale deferred trigger (payments = total, lines = subtotal, change)
+  - header CHECKs; one sale per unit; append-only tables
+  - payment rules; tax-history immutability; customer rules
+  - SALE ledger movements
+  - **Finding:** Prisma's 1:1 `connect` on `sale_items.product_unit_id` would detach a unit from its earlier sale. The append-only trigger blocks it; checkout must write scalar foreign keys.
+- **6.2 unit (42 new):** phone normalisation (Tanzanian and international formats; every local format of one number maps to one value; invalid inputs), VAT-rate format, `requireActive` sales guard (BR-20, 0% counts as configured), permission snapshot (`settings:write` held only by SYSTEM_ADMIN).
+- **6.2 `settings-customers.e2e-spec.ts` (39):**
+  - VAT: unconfigured → guard blocks; six non-admin roles get 403 and nothing is stored; validation; set 18% → all roles read it; 0% allowed; history kept; no-op not audited; concurrent admins → exactly one active rate; audit visibility
+  - customers: normalisation; duplicates across formats → 409; validation; search by name, full phone in any format or partial digits; update/clear/deactivate
+  - **audit stores changed field names only, never phone, email or name**
+  - every role × read/write; a refused write changes nothing
+- **Defect found by unit tests:** a mistyped 9-digit number starting with 0 was turned into an impossible `+2550…` number. Fixed: bare 9-digit subscriber numbers never start with 0.
+- **Mutation check:** opening the VAT route to any authenticated user failed 7 tests; writing personal values into customer audit failed 1. Code restored.
+
+## 10.11 Module 6 stage 6.3 evidence (POS search, unit selection, pricing preview)
+- **Totals after stage 6.3:** **237 unit** and **394 e2e** tests, all passing (Modules 1–5 and stages 6.1–6.2 unchanged). No migration.
+- **Unit `pricing.spec.ts` (11):**
+  - half-up rounding to 2 decimals
+  - demo cart 1,780,000 + 18% = 2,100,400
+  - VAT rounded once on the subtotal, not per line
+  - fractional rates; 0% VAT
+  - Decimal(14,2) overflow; invalid quantity or rate rejected
+- **`pos-quote.e2e-spec.ts` (59):** stock is received through the real PO → approve → receive API.
+  - **VAT not configured:** quote → 409 `TAX_NOT_CONFIGURED`; the catalogue stays browsable.
+  - **Roles:** 401 without a token. MANAGER, INVENTORY, PROCUREMENT, TECHNICIAN and AUDITOR get 403 on all three endpoints. CASHIER (branch implied) and SYSTEM_ADMIN (branch chosen) are allowed.
+  - **Branches:**
+    - a cashier at another branch → 403 `BRANCH_ACCESS_DENIED`
+    - admin without `branchId` → 400
+    - inactive branch → 400 `REFERENCE_INACTIVE`; unknown branch → 404
+  - **Search:**
+    - search by name, SKU or brand, case-insensitive
+    - inactive products are hidden even when they have stock
+    - available stock is per branch; `inStockOnly` filter
+    - **no cost field anywhere in the response**; unknown query parameters → 400
+  - **Units:**
+    - only IN_STOCK units at the selling branch are listed, with identifiers (dual IMEI, primary first)
+    - a scanned serial or IMEI resolves regardless of case, spaces or dashes
+    - a sold unit, another branch's unit, or a unit of an inactive product → 409 `UNIT_NOT_AVAILABLE`, without revealing where the unit is (I15)
+  - **Quote:**
+    - server prices and totals
+    - every client-supplied price, total, tax rate or discount field → 400
+    - S15 limits (50 lines, 1–1,000 units, integers only)
+    - insufficient stock → 409 `INSUFFICIENT_STOCK` with line details
+    - inactive or unknown product → 400 `PRODUCT_NOT_SELLABLE`
+    - serialized-line rules: unit required, quantity 1, matching product, no unit twice
+    - the same quantity product twice → `DUPLICATE_PRODUCT_LINE`
+    - **no side effects** (balances, units, movements, sales, payments, sequences and audit are identical)
+    - a VAT change (0%) and a manager's price change apply to the next quote
+- **Mutation check (each rule removed in turn, tests failed, code restored, 0 markers left):**
+  - active-product check: 2 failed
+  - stock check: 2 failed
+  - unit branch/status check: 6 failed
+  - inactive product on scanned unit: 1 failed
+- **Stability:** the new suite passed 3/3 consecutive runs.
+
+## 10.12 Module 6 stage 6.4 evidence (complete POS sales workflow: checkout, payments, stock, receipts, summary)
+- **Totals after stage 6.4:** **249 unit** and **458 e2e** tests, all passing (Modules 1–5 and stages 6.1–6.3 unchanged). No migration.
+- **Unit (12 new):**
+  - payment settlement: demo split with change; exact card payment; under/overpayment; zero amount; tender below amount; tender on a non-cash method; missing mobile-money or bank reference
+  - receipt-number format and range
+  - WAC → ledger cost rounding
+  - receipt date/time in the business timezone
+- **`sales.e2e-spec.ts` (64):** stock received through the real PO → approve → receive API at two branches.
+  - **Workflow:** search → scan serial → quote → checkout (mobile money + cash with change) → receipt.
+    - Exact totals 1,780,000 + 18% VAT = 2,100,400; change 600.
+    - Stock −2 cables / −1 laptop; the device becomes SOLD.
+    - SALE ledger rows reference the sale at WAC; WAC is unchanged.
+    - `sale.completed` audit without payment references.
+    - Receipt numbers are sequential per branch (`RCT-BR-A-YYYY-000001`, `…-000002`, `RCT-BR-B-…-000001`).
+  - **Costs:** never shown to cashiers, never on receipts; `costAtSale` shown to manager, auditor and admin only.
+  - **Payments:** all four methods in one split sale. Under/overpayment → `PAYMENT_MISMATCH`. Missing references, bad tender, zero/negative/3-dp/numeric amounts, unknown method, 0 or 6 payments → 400. Every refusal changes nothing.
+  - **Tampering:** 13 client-supplied price/total/tax/cost/discount/payment/cashier/receipt/status fields → 400 because of that field, and nothing changes. A payment computed from a lower fake price → `PAYMENT_MISMATCH`.
+  - **Stock and devices:** insufficient stock → 409; sold or other-branch device → 409; inactive product → 400; a dual-IMEI phone sells by either IMEI.
+  - **Idempotency:** a retry returns the identical sale (200) with no changes. Same key with a different body, or from another cashier → 409. Missing or malformed key → 400. **6 simultaneous submissions of one sale → one 201 and five 200 with the same sale.**
+  - **Concurrency:**
+    - **6 checkouts race for the last 3 SIM cards → exactly 3 sales, stock 0.**
+    - **5 checkouts of one device → exactly one sale; one sale line and one SALE movement for it.**
+  - **Rollback:** a failure injected at the last step (audit) → 500 with no internal detail. Stock, devices, sale, lines, payments, movements, audit and the receipt sequence are all unchanged, and the next receipt number has no gap. A mixed cart failing on its last line changes nothing.
+  - **Permissions:**
+    - only CASHIER and SYSTEM_ADMIN can check out
+    - a cashier cannot sell at another branch; the admin must choose an active branch; unknown or inactive customer → 400
+    - sales list, detail and receipt are branch-scoped: a cashier sees their whole branch (S8), a manager or auditor their branches, the admin all; another branch's sale → 403; inventory, procurement and technician roles → 403
+    - list filters work by receipt, cashier, customer and business-date range
+  - **Snapshots:** a later price change and a VAT change (16%) do not alter completed sales; new sales use the new values.
+  - **Daily summary:**
+    - count, units, tax and total equal the database figures; payment methods add up to the total; cashier counts add up
+    - manager, auditor and admin may read it; cashiers and other roles → 403; another branch → 403
+    - an empty day returns zeros
+  - **Reconciliation:**
+    - balances = Σ movements, never negative; serialized on-hand = IN_STOCK units
+    - each sale's SALE movements = its lines; SOLD units ⇔ sold lines; payments = totals
+    - no orphan SALE movements; one audit event per sale
+- **Mutation check (each rule removed in turn; code restored; 0 markers left):**
+  - conditional stock decrement: 3 failed
+  - idempotency-key lock: 1 failed
+  - payment rules: 9 failed
+  - branch check on sale reads: 1 failed
+  - cost masking: 2 failed
+  - **Survived by design:** removing the `IN_STOCK` guard on the device update. The partial UNIQUE index on `sale_items.product_unit_id` still rejects the second sale, the losing checkout rolls back completely, and the API returns the same 409 `UNIT_NOT_AVAILABLE`. This confirms the database backstop works independently.
+- **Stability:** the new suite passed 3/3 consecutive runs (including the concurrency tests).
+
+## 10.13 Frontend MVP evidence (16 Nov 2026)
+- **Approach:** no new dependencies (the npm registry was unreachable from the build machine).
+  - Unit and render tests compile with Vite's SSR build and run on Node's built-in test runner, rendering with `react-dom/server`.
+  - Browser tests drive the installed Google Chrome over the DevTools protocol against a backend on the **test** database (`frontend/e2e/README.md`).
+- **Unit/render (36):**
+  - **API client:** token in memory only (nothing in web storage); Bearer header; anti-CSRF header and same-origin credentials on refresh.
+  - **Refresh:** a 401 triggers one refresh and one retry. **Six concurrent 401s share one refresh call.** Concurrent explicit refreshes are shared too.
+  - **Session end and failures:** an ended session signs out with no refresh loop; a network error during refresh keeps the session; logout works offline; error envelopes and network errors are mapped correctly.
+  - **Money and cart:** money display (exact decimal strings, change and remaining amount in integer cents); the cart never sends a price, total, tax or cost field.
+  - **Idempotency keys:** reused for the same payload (any field order) and across a reload; new for a changed payload; cleared after success.
+  - **Role navigation and route guards:** all 7 roles, using the seeded RBAC permissions; branch picker and nav rendering.
+- **Browser end-to-end (53 checks, real backend):**
+  - the full purchase → receive (serials, dual IMEIs) → search → device → quote → split payment → checkout → receipt (screen and print) → history → summary → VAT workflow;
+  - reload restores the session with exactly one refresh; a simulated 401 is refreshed once and retried;
+  - role navigation and deep-link refusals for cashier and manager;
+  - insufficient stock disables checkout;
+  - **a lost checkout response followed by a retry creates no duplicate (same idempotency key on both attempts)**, and a triple-click creates one sale;
+  - no cost or profit shown to cashiers;
+  - layouts at 1440, 820 and 390 px (sidebar collapses; no horizontal scroll).
+- **Defects found and fixed:**
+  - The purchase API did not return line ids, so no API client could call receiving. Fixed by exposing `id`, `identifierType` and `identifiersPerUnit` (commit `5d358a1`, with backend tests).
+  - The browser run also confirmed that the CSRF origin check refuses cookie refresh and logout from an origin that is not configured; the test backend is started with the e2e origin allowed.
+
+## 10.14 Frontend: every actor (17 Nov 2026)
+- **New screens (frontend only; no backend change):**
+  - Users and Branches (administration);
+  - My account (change own password);
+  - Products, categories and brands, following the field-level price/cost rules;
+  - Suppliers;
+  - Purchase orders: create, edit draft, submit, approve/reject, reopen, cancel, receive link;
+  - Customers, and an optional customer at the POS;
+  - Audit log;
+  - Stock movements, devices and valuation.
+- **Unit/render (37):** navigation and route guards checked against each role's full permission set from `GET /roles`; temporary-password generator.
+- **Browser end-to-end: 94/94 checks**, the 53 earlier ones plus 41 new ones covering the full multi-role scenario (see `frontend/e2e/README.md`). Highlights:
+  - users created in the UI sign in with their temporary passwords;
+  - a password change revokes the old password;
+  - the purchase-order chain runs procurement → manager approval → inventory receiving;
+  - price edits are manager-only and detail edits are inventory-only;
+  - the auditor is read-only; the technician sees no costs;
+  - a deactivated user is refused at sign-in.
+- **Known limit:** branch pickers list the first 100 branches (the API's maximum page size).
+

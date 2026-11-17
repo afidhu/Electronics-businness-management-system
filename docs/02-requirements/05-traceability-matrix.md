@@ -7,7 +7,7 @@
 | FR-UNIT-01..04 | ProductUnit / UnitIdentifier | Duplicate identifier and single-sale tests |
 | FR-PUR-01..05 | Supplier, Purchase, PurchaseItem (Module 4); receiving service (Module 5) | Purchase state tests (Module 4); receiving idempotency tests (Module 5) |
 | FR-INV-01..12 | Inventory (Module 5): ledger, balances, receiving; adjustments/transfers in stage 5.2 | Ledger, receiving, idempotency, BR-14 tests (Module 5); transfer/adjustment tests with stage 5.2 |
-| FR-SALE-01..09 | Sales, SaleItem, Payment, receipt service | Checkout, insufficient stock, concurrent sale and payment tests |
+| FR-SALE-01..11 | Module 6: POS catalogue/quote, checkout, payments, receipts (returns FR-SALE-08 deferred) | Checkout, insufficient stock, concurrent sale, rollback, idempotency, payment tests (Module 6) |
 | FR-CUST-01 | Customer module | Customer validation and sales association tests |
 | FR-WAR-01..04 | Warranty, WarrantyClaim | Warranty start/end and eligibility tests |
 | FR-RPT-01..04 | Reports module | Date/branch filter and reconciliation tests |
@@ -81,3 +81,23 @@ A requirement is not complete until its acceptance criteria and relevant test ev
 | FR-INV-07 / US-21 (I21) | `GET /inventory/balances?lowStock=true` | › read APIs |
 | FR-INV-12 (cost masking) | `inventory-query.service.ts` | › CASHIER sees quantities but never costs |
 | FR-INV-03/05/06, I6–I10c, I13 | **Stage 5.2, deferred** | — |
+
+### Module 6 stages 6.1–6.4 (16 Nov 2026)
+| Requirement | Implemented in | Test evidence |
+|---|---|---|
+| BR-19 (append-only sales, one sale per unit) | migration `…_pos` (triggers, UNIQUE) | `pos-schema.e2e-spec.ts` |
+| BR-20 / S1 (VAT configured before sales; history; `settings:write`) | `settings/tax-settings.service.ts`, `tax_settings` rules | `tax-settings.spec.ts`; `settings-customers.e2e-spec.ts` › VAT |
+| FR-CUST-01 / S6 (customers, normalised unique phone) | `customers/*`, `customers` CHECK and UNIQUE | `phone.spec.ts`; › customers |
+| FR-SALE-01 (product search: name, SKU, brand; branch stock; active only) | `GET /pos/catalogue` — `pos/pos.service.ts` | `pos-quote.e2e-spec.ts` › product search |
+| FR-SALE-05 / S9 / I15 (serialized unit selection, IN_STOCK at branch only) | `GET /pos/units`, `PosService.resolveCart` | › serialized device selection; › pricing preview |
+| FR-SALE-03 / S2 / S14 / S20 (server pricing, half-up VAT on subtotal, preview) | `pos/pricing.ts`, `POST /pos/quote` | `pricing.spec.ts`; › pricing preview |
+| S10 / S19 (selling branch; `sales:create` only) | `PosService.resolveBranch`, `PosController` | › roles and authentication; › selling branch |
+| FR-SALE-02 / S5 (sale with receipt number, cashier, branch, time, lines, totals) | `POST /sales` — `pos/sales.service.ts`; `formatReceiptNumber` | `sales.e2e-spec.ts` › complete workflow |
+| FR-SALE-04 / BR-02 / BR-04 / T-10 (atomic sale + stock; no oversell; one sale per device; rollback) | `SalesService.checkoutInTx`, `StockLedgerService.decrease` | › simultaneous checkouts; › rollback; › reconciliation |
+| FR-SALE-06 / FR-SALE-07 / S4 (methods, references, split, change, Σ = total) | `pricing.ts` `settlePayments`; `payments` CHECK and trigger | `pricing.spec.ts`; › payments (S4) |
+| FR-SALE-09 / S12 (receipt data for printing) | `GET /sales/:id/receipt` | › receipt data for printing |
+| FR-SALE-10 / S16 (mandatory idempotency key; retries; simultaneous submissions) | advisory lock + `sales.idempotency_key` UNIQUE | › idempotency and retries |
+| FR-SALE-11 / S11 / S20 (price, name/SKU, VAT and cost snapshots) | `sale_items` snapshots, `costAtSale` = WAC | › price and VAT snapshots; › costs |
+| FR-SALE-03 (tampered client prices/totals) | `CheckoutDto` (whitelist), server pricing | › client prices, totals and tax are never trusted |
+| S8 / S17 / FR-RPT-02 (branch-scoped sales list; daily summary) | `GET /sales`, `GET /sales/summary` | › permissions and branch access; › daily sales summary |
+| FR-SALE-08 (returns/refunds) | **Deferred** (after Module 6) | — |

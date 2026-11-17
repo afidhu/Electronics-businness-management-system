@@ -275,6 +275,24 @@ describe('Procurement — Module 4 (e2e)', () => {
           lineTotal: '400000.00',
         }),
       ]);
+      // Line ids are exposed (receiving needs them as purchaseItemId), with
+      // the product's identifier rules for the receiving form.
+      const dbItems = await ctx.prisma.purchaseItem.findMany({
+        where: { purchaseId: res.body.data.id },
+        orderBy: { lineNumber: 'asc' },
+      });
+      expect(
+        res.body.data.items.map(
+          (i: {
+            id: string;
+            identifierType: string | null;
+            identifiersPerUnit: number | null;
+          }) => [i.id, i.identifierType, i.identifiersPerUnit],
+        ),
+      ).toEqual([
+        [dbItems[0].id, 'SERIAL', 1],
+        [dbItems[1].id, null, null],
+      ]);
     });
 
     it('numbers independently per branch and year (P6)', async () => {

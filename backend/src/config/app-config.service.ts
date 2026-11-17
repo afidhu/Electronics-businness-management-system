@@ -41,6 +41,10 @@ export class AppConfigService {
     return this.config.get('CURRENCY', { infer: true });
   }
 
+  get businessName(): string {
+    return this.config.get('BUSINESS_NAME', { infer: true });
+  }
+
   get swaggerEnabled(): boolean {
     return this.config.get('SWAGGER_ENABLED', { infer: true }) ?? false;
   }

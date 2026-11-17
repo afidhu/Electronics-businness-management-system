@@ -46,6 +46,9 @@ export const PERMISSIONS = {
   REPAIRS_WRITE: 'repairs:write',
   // Reports
   REPORTS_SALES: 'reports:sales',
+  // Settings (Module 6)
+  /** Change organisation settings, e.g. the VAT rate. SYSTEM_ADMIN only (S1). */
+  SETTINGS_WRITE: 'settings:write',
   REPORTS_INVENTORY: 'reports:inventory',
 } as const;
 
@@ -83,6 +86,7 @@ export const PERMISSION_DESCRIPTIONS: Record<PermissionKey, string> = {
   'repairs:read': 'View repair jobs (later release)',
   'repairs:write': 'Manage repair jobs (later release)',
   'reports:sales': 'View sales reports and dashboard',
+  'settings:write': 'Change organisation settings such as the VAT rate',
   'reports:inventory': 'View inventory reports',
 };
 

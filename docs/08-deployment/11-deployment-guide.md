@@ -33,7 +33,7 @@ Create production secrets outside source control:
 - `CORS_ORIGINS`: allowed frontend origin(s), comma-separated
 - `NODE_ENV=production` and `PORT`
 - `LOG_LEVEL` (`error` | `warn` | `log` | `debug` | `verbose`)
-- `BUSINESS_TIMEZONE` (default `Africa/Dar_es_Salaam`) and `CURRENCY` (default `TZS`)
+- `BUSINESS_TIMEZONE` (default `Africa/Dar_es_Salaam`), `CURRENCY` (default `TZS`) and `BUSINESS_NAME` (receipt trading name, default `ElectroCore Electronics`)
 - `SWAGGER_ENABLED` (default `false` in production)
 - any email/SMS credentials if later added
 

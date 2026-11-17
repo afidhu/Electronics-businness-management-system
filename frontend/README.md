@@ -1,32 +1,74 @@
-# React + TypeScript + Vite
+# ElectroCore EBMS — Frontend (MVP)
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+React 19 + TypeScript on Vite. One single-page app for every actor of the
+system; **no runtime dependencies beyond React.**
 
-Currently, two official plugins are available:
+| Role | Screens |
+|---|---|
+| System administrator | everything below, plus **Users** (create, role, branches, deactivate, reset password), **Branches**, **VAT settings** |
+| Manager | dashboard (orders awaiting approval), sales history, daily summary, customers (read), stock + valuation, products (**change prices**), purchase orders (**approve / reject / cancel approved**), suppliers (read), users (read), audit log |
+| Inventory officer | stock (balances, movements, devices), **receiving** with IMEI/serial entry, **products, categories, brands**, purchase orders and suppliers (read) |
+| Procurement officer | **suppliers**, **purchase orders** (create, edit draft, submit, reopen, cancel), stock, products (read), receiving* |
+| Cashier | **point of sale** (search, device picker/scan, cart, server quote, split payments, optional customer), receipts, sales history of their branch, **customers**, stock (quantities only), products (no costs) |
+| Technician | customers and products (read; repairs/warranty modules are not built yet) |
+| Auditor | read-only: sales, summary, customers, stock + valuation, products, purchase orders, suppliers, users, audit log |
+| Everyone | dashboard, **My account** (profile, change own password) |
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+\* the backend still refuses receiving an order you created, submitted or approved (BR-14).
+Navigation only hides what a role cannot use; the backend enforces every rule.
 
-## React Compiler
+## Run
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the Oxlint configuration
-
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
-
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
+```bash
+cd EBMS && nvm use            # Node 24 (.nvmrc)
+cd backend && npm run start:dev   # API on :3000 (CORS_ORIGINS=http://localhost:5173)
+cd ../frontend && npm run dev     # http://localhost:5173
 ```
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+The dev server proxies `/api` to the backend (`VITE_API_PROXY`, default
+`http://localhost:3000`). The app must reach the API on the **same origin**:
+the refresh cookie is `HttpOnly; SameSite=Strict; Path=/api/v1/auth`, and the
+backend's CSRF guard accepts only the configured `CORS_ORIGINS`. In
+production, Caddy serves the built files and proxies `/api` in the same way.
+
+| Script | What it does |
+|---|---|
+| `npm run dev` | Dev server with the API proxy |
+| `npm run build` | Typecheck (`tsc -b`) and production build to `dist/` |
+| `npm run typecheck` / `npm run lint` | TypeScript / oxlint |
+| `npm test` | Unit + render tests (Vite SSR build → `node --test`) |
+| `npm run e2e` | Real-browser end-to-end test (see `e2e/README.md`) |
+
+## Security and correctness rules
+
+- **Access token in memory only** (`src/api/client.ts`). Nothing is written
+  to localStorage/sessionStorage except a branch id preference and pending
+  idempotency keys. A reload restores the session from the HttpOnly cookie.
+- **Single-flight refresh:** concurrent 401s share one `POST /auth/refresh`
+  (refresh tokens rotate, so parallel refreshes would revoke each other);
+  each request is retried once.
+- **No authoritative prices or totals in the browser.** The cart holds product
+  and device ids and quantities only. Prices, VAT and totals come from
+  `POST /pos/quote` and `POST /sales`. Each quote is tagged with the cart it
+  priced, so a stale quote never enables checkout. The only arithmetic is the
+  "still due / change" hint while typing payments (integer cents; the server
+  re-validates).
+- **Idempotency keys** (`src/lib/idempotency.ts`): one key per payload for
+  checkout and receiving, reused on retries and across a reload. If a checkout
+  outcome is uncertain (network error or 5xx), the cart locks and offers a
+  retry that resends the same key, so it can never create a second sale.
+- **Permissions:** navigation and route guards follow the user's permissions
+  (`src/lib/permissions.ts`); the backend enforces every rule regardless. Costs
+  are never rendered unless the server sends them (summary profit for roles
+  with `catalogue:cost_read`); receipts never contain costs.
+
+## Layout
+
+```
+src/api/          API client (auth, refresh, errors) and response types
+src/app/          session provider/context, API singleton
+src/components/   layout (nav, branch picker) and UI primitives
+src/lib/          router, permissions, money display, cart, idempotency
+src/pages/        screens
+e2e/              API fixture + Chrome DevTools-protocol browser test
+```

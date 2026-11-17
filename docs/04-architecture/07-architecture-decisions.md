@@ -277,3 +277,31 @@ The project owner approved the roles, branch access and authentication strategy 
   - Unit cost comes from the PO line.
   - The PO becomes PARTIALLY_RECEIVED or RECEIVED via a conditional update.
 - **Idempotency:** a mandatory UUID key, unique per receipt, stored with a SHA-256 request hash. A replay returns the original; a different payload returns 409. A concurrent duplicate is resolved by the UNIQUE constraint.
+
+## ADR-031: POS checkout, tax and payments
+**Status:** Accepted (16 Nov 2026, S0–S20; S13 deferred). Proposal: `docs/proposals/module-6-pos.md`.  
+**Decision:**
+- **One-transaction checkout:**
+  - idempotency lookup;
+  - products locked FOR SHARE (active, price);
+  - active VAT rate required (BR-20);
+  - valuations, balances and units locked in sorted order (same lock order as receiving);
+  - quantity stock decremented conditionally (`on_hand − reserved ≥ q`); serialized units moved IN_STOCK → SOLD conditionally;
+  - SALE ledger rows written through `StockLedgerService` (WAC unchanged, costAtSale = current WAC);
+  - sale, lines and payments inserted, audited, committed.
+- **Database guarantees:** totals CHECKs; a partial UNIQUE index on `sale_items.product_unit_id` (one sale per unit); append-only sales, lines and payments; a deferred trigger requiring Σ payments = total; `on_hand >= 0`.
+- **Tax:** `tax_settings` with one active row, set via `PUT /settings/tax` (`settings:write`, SYSTEM_ADMIN). Tax = round_half_up(subtotal × rate / 100, 2); the rate is snapshotted on the sale.
+- **Payments:** CASH (tendered ≥ amount → change), CARD, MOBILE_MONEY and BANK_TRANSFER (reference required); split payments; Σ = total exactly; no credit.
+- **Receipt:** `RCT-{BRANCH}-{YYYY}-{NNNNNN}` (business timezone). The frontend prints the JSON receipt.
+- **Module 5 change:** `MovementType` gains `SALE`; the `stock_movements` reference-type CHECK allows `'SALE'`.
+- Deferred: warranty (S13), returns/refunds/voids, discounts, holds, shifts.
+- **Implementation notes (stage 6.4, 16 Nov 2026):**
+  - The idempotency key is serialised first with a transaction-scoped advisory lock (`pg_advisory_xact_lock`). Simultaneous retries of one sale therefore wait and then replay the original (200) instead of competing for stock.
+  - Same key with a different body, or from a different cashier → 409 `IDEMPOTENCY_KEY_REUSED`.
+  - Full lock order: key → products FOR SHARE (sorted) → active tax row FOR SHARE → valuations (sorted) → balances (sorted) → units (sorted).
+  - `costAtSale` stores the 4-dp WAC. The SALE ledger row uses the WAC rounded half-up to 2 dp, because `stock_movements.unit_cost` is Decimal(14,2) and the CHECK requires `value_delta = quantity_delta × unit_cost`.
+  - Payment total mismatch → 400 `PAYMENT_MISMATCH`. Other payment-rule failures → 400 `VALIDATION_ERROR` naming the field.
+  - Reading a sale from another branch → 403 `BRANCH_ACCESS_DENIED`, the same as other modules.
+  - `GET /sales/:id/receipt` never returns costs. `GET /sales/:id` includes `costAtSale` only with `catalogue:cost_read`.
+  - The daily summary's `costOfGoodsSold` and `grossProfit` (tax-exclusive subtotal − COGS) are likewise shown only with `catalogue:cost_read`.
+  - The receipt business name comes from the `BUSINESS_NAME` setting (default "ElectroCore Electronics").

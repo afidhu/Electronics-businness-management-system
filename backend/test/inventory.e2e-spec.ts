@@ -173,6 +173,27 @@ describe('Inventory — Module 5 stage 5.1 (e2e)', () => {
     await ctx?.app.close();
   });
 
+  // ------------------------------------------------ API-only receiving
+  it('receives using the line id from GET /purchases/:id (no database lookup)', async () => {
+    const po = await approvedPo([
+      { productId: cable, quantity: 3, unitCost: '1000' },
+    ]);
+    const detail = await http()
+      .get(`/api/v1/purchases/${po.id}`)
+      .set(as('invA'))
+      .expect(200);
+    const line = detail.body.data.items[0];
+    expect(line).toMatchObject({
+      productId: cable,
+      trackingMode: 'QUANTITY',
+      identifierType: null,
+      identifiersPerUnit: null,
+    });
+    await receive('invA', po.id, {
+      items: [{ purchaseItemId: line.id, quantity: 3 }],
+    }).expect(201);
+  });
+
   // ------------------------------------------------------------ BR-14
   describe('BR-14 separation of duties (I4, I22)', () => {
     it('creator/submitter cannot receive; blocked attempt audited; nothing changes', async () => {

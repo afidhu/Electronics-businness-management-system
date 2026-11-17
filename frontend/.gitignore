@@ -22,3 +22,7 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Browser end-to-end artefacts
+e2e/screenshots/
+.test-dist/

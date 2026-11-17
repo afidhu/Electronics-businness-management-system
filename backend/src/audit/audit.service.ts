@@ -18,6 +18,8 @@ export const ORGANISATION_WIDE_ENTITY_TYPES = [
   'Brand',
   'Product',
   'Supplier', // Module 4, P13
+  'TaxSetting', // Module 6: organisation VAT rate
+  'Customer', // Module 6: organisation-wide customers (metadata minimised)
 ] as const;
 
 /** Keys never stored in audit metadata, at any depth (NFR-SEC-04). */

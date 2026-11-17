@@ -1,6 +1,7 @@
 import { plainToInstance, Transform } from 'class-transformer';
 import {
   IsBoolean,
+  MaxLength,
   MinLength,
   IsIn,
   IsInt,
@@ -75,6 +76,11 @@ export class EnvironmentVariables {
   /** ISO 4217 code of the single operating currency. */
   @Matches(/^[A-Z]{3}$/, { message: 'CURRENCY must be an ISO 4217 code' })
   CURRENCY = 'TZS';
+
+  /** Trading name printed on receipts. */
+  @IsString()
+  @MaxLength(100)
+  BUSINESS_NAME = 'ElectroCore Electronics';
 
   @IsIn(LOG_LEVELS)
   LOG_LEVEL: LogLevelName = 'log';

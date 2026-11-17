@@ -68,6 +68,7 @@ All settings come from environment variables, validated at startup (`src/config/
 | `LOG_LEVEL` | `log` | `error` \| `warn` \| `log` \| `debug` \| `verbose` |
 | `BUSINESS_TIMEZONE` | `Africa/Dar_es_Salaam` | IANA name; timestamps are always stored in UTC |
 | `CURRENCY` | `TZS` | ISO 4217 |
+| `BUSINESS_NAME` | `ElectroCore Electronics` | Trading name printed on receipts |
 | `SWAGGER_ENABLED` | on outside production | |
 | `JWT_ACCESS_SECRET` | — (required) | ≥ 32 chars; `openssl rand -base64 48`; unique per environment |
 | `JWT_ACCESS_TTL_SECONDS` | `900` | Access-token lifetime (15 min) |

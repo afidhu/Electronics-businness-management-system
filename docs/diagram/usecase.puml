@@ -1,0 +1,149 @@
+@startuml
+left to right direction
+skinparam packageStyle rectangle
+skinparam actorStyle awesome
+
+title ElectroCore EBMS - Use Case Diagram
+
+' ===== ACTORS =====
+actor "System Administrator" as Admin
+actor Manager
+actor Cashier
+actor "Inventory Officer" as Inventory
+actor "Procurement Officer" as Procurement
+actor Auditor
+actor Technician
+
+rectangle "ELECTROCORE EBMS" {
+
+    ' Authentication
+    usecase "Login / Logout" as UC1
+    usecase "View Dashboard" as UC2
+
+    ' Administration
+    usecase "Manage Users" as UC3
+    usecase "Assign Roles" as UC4
+    usecase "Configure VAT Settings" as UC5
+
+    ' Catalogue
+    usecase "Manage Product Catalogue" as UC6
+    usecase "Search Products" as UC7
+    usecase "View Stock Levels" as UC8
+
+    ' Procurement
+    usecase "Manage Suppliers" as UC9
+    usecase "Create Purchase Order" as UC10
+    usecase "Submit Purchase Order" as UC11
+    usecase "Approve Purchase Order" as UC12
+
+    ' Inventory
+    usecase "Receive Approved Purchase" as UC13
+    usecase "Record IMEI / Serial Numbers" as UC14
+    usecase "Update Stock Balance" as UC15
+    usecase "View Stock Movements" as UC16
+
+    ' POS
+    usecase "Search Available Products" as UC17
+    usecase "Select Device" as UC18
+    usecase "Preview Sale Price" as UC19
+    usecase "Process Checkout" as UC20
+    usecase "Record Payments" as UC21
+    usecase "Generate Receipt" as UC22
+    usecase "Print Receipt" as UC23
+    usecase "View Sales History" as UC24
+
+    ' Reporting and Audit
+    usecase "View Daily Sales Summary" as UC25
+    usecase "View Business Reports" as UC26
+    usecase "Review Audit Logs" as UC27
+    usecase "View Transaction Costs" as UC28
+}
+
+' ===== ADMINISTRATOR =====
+Admin --> UC1
+Admin --> UC2
+Admin --> UC3
+Admin --> UC4
+Admin --> UC5
+Admin --> UC6
+Admin --> UC8
+Admin --> UC25
+Admin --> UC26
+
+' ===== MANAGER =====
+Manager --> UC1
+Manager --> UC2
+Manager --> UC6
+Manager --> UC7
+Manager --> UC8
+Manager --> UC12
+Manager --> UC24
+Manager --> UC25
+Manager --> UC26
+Manager --> UC28
+
+' ===== PROCUREMENT OFFICER =====
+Procurement --> UC1
+Procurement --> UC2
+Procurement --> UC9
+Procurement --> UC10
+Procurement --> UC11
+
+' ===== INVENTORY OFFICER =====
+Inventory --> UC1
+Inventory --> UC2
+Inventory --> UC7
+Inventory --> UC8
+Inventory --> UC13
+Inventory --> UC14
+Inventory --> UC16
+
+' ===== CASHIER =====
+Cashier --> UC1
+Cashier --> UC2
+Cashier --> UC17
+Cashier --> UC18
+Cashier --> UC19
+Cashier --> UC20
+Cashier --> UC21
+Cashier --> UC22
+Cashier --> UC23
+Cashier --> UC24
+
+' ===== AUDITOR =====
+Auditor --> UC1
+Auditor --> UC2
+Auditor --> UC16
+Auditor --> UC24
+Auditor --> UC26
+Auditor --> UC27
+Auditor --> UC28
+
+' ===== TECHNICIAN =====
+Technician --> UC1
+Technician --> UC2
+Technician --> UC7
+
+' ===== USE CASE RELATIONSHIPS =====
+UC3 .> UC4 : <<include>>
+UC10 .> UC11 : <<include>>
+UC13 .> UC14 : <<include>>
+UC13 .> UC15 : <<include>>
+UC20 .> UC19 : <<include>>
+UC20 .> UC21 : <<include>>
+UC20 .> UC22 : <<include>>
+UC23 .> UC22 : <<extend>>
+UC18 .> UC17 : <<extend>>
+
+note bottom of Technician
+  Repair and warranty management
+  are future functionality,
+  not part of the current MVP.
+end note
+
+note bottom of UC28
+  Confidential cost information
+  is restricted by role permissions.
+end note
+
+@enduml

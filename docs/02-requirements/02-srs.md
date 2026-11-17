@@ -65,6 +65,8 @@ Administrator, Manager, Inventory Officer, Procurement Officer, Cashier/Salesper
 - FR-SALE-08 (Should): Returns/refunds use a controlled workflow; completed sales are not silently deleted.
 - FR-SALE-09 (Must): Receipt can be viewed and printed/exported.
 - FR-CUST-01 (Should): Customer records can be linked to sales and warranties.
+- FR-SALE-10 (Must, Module 6): Checkout requires an idempotency key; a retried request returns the original sale.
+- FR-SALE-11 (Must, Module 6): Each sale snapshots unit price, product name/SKU, VAT rate and cost of goods sold (hidden from cashiers).
 
 ### Warranty and repairs
 - FR-WAR-01 (Should): Warranty policy can be defined per product or category.
@@ -90,6 +92,8 @@ Administrator, Manager, Inventory Officer, Procurement Officer, Cashier/Salesper
 - BR-16 *(16 Nov 2026)*: On-hand stock can never be negative; serialized on-hand equals the number of IN_STOCK units at that branch.
 - BR-17 *(16 Nov 2026)*: Serial/IMEI identifiers are unique across the organisation after normalisation and are never reused.
 - BR-18 *(16 Nov 2026)*: Inventory is valued at moving weighted-average cost, organisation-wide per product; receiving never changes catalogue cost or selling prices.
+- BR-19 *(16 Nov 2026)*: Sales, sale lines and payments are append-only; a serialized unit belongs to at most one sale (DB partial unique index).
+- BR-20 *(16 Nov 2026)*: Sales are blocked until an administrator configures the VAT rate (0% allowed); each sale records the rate used; tax is rounded half-up to 2 decimals on the subtotal.
 - BR-11 *(16 Nov 2026)*: Separation of duties: a purchase order cannot be approved or rejected by the user who created it, regardless of role. Approval and rejection are recorded in the audit log.
 - BR-01: Completed sale cannot make available stock negative.
 - BR-02: A serialized unit is uniquely identifiable and sold at most once.
@@ -157,6 +161,9 @@ Administrator, Manager, Inventory Officer, Procurement Officer, Cashier/Salesper
 | Inventory valuation | Moving weighted average, organisation-wide; catalogue prices unaffected | ADR-029 (I1, I2) |
 | Receiving | Approved/partially received POs only; no over-receiving; creator, submitter and approver can't receive; idempotent; PO line cost | ADR-028, ADR-030 (I3–I5, I19, I20) |
 | Inventory stage 5.2 (deferred) | Close short (CLOSED), adjustments with approval and `inventory:adjust_approve`, opening balances, two-step transfers | proposal M5 §0 (I6–I10c, I13, I16) |
+| POS (Module 6) | Server-priced checkout; split payments (cash/card/mobile money/bank transfer) summing exactly to the total; cash change; references for mobile money and bank transfer; `RCT-{BRANCH}-{YYYY}-{NNNNNN}`; optional organisation-wide customers with unique normalised phone; no discounts; idempotent | ADR-031 (S1–S20) |
+| VAT | One organisation rate in the database, set by SYSTEM_ADMIN (`settings:write`); sales blocked until set | ADR-031 (S1, S2) |
+| Deferred after Module 6 | Warranty (S13), returns/refunds/voids, discounts, holds, shifts, PDF receipts | proposal M6 |
 | Initial administrator | `admin@gmail.com` (SYSTEM_ADMIN), seeded with a random temporary password; change on first login | ops §12.8 |
 | Branch access | Admin all branches; others assigned (Cashier/Technician one); backend-enforced | ADR-019 |
 | Audit | Append-only audit log of sensitive actions | ADR-020 |

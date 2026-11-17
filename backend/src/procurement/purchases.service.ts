@@ -49,7 +49,16 @@ const PURCHASE_INCLUDE = {
   cancelledBy: PERSON,
   items: {
     orderBy: { lineNumber: 'asc' },
-    include: { product: { select: { sku: true, trackingMode: true } } },
+    include: {
+      product: {
+        select: {
+          sku: true,
+          trackingMode: true,
+          identifierType: true,
+          identifiersPerUnit: true,
+        },
+      },
+    },
   },
 } as const satisfies Prisma.PurchaseInclude;
 
@@ -103,11 +112,15 @@ export class PurchasesService {
         : null,
       notes: row.notes,
       items: row.items.map((i) => ({
+        // Line id: the `purchaseItemId` that receiving (POST /purchases/:id/receive) needs.
+        id: i.id,
         lineNumber: i.lineNumber,
         productId: i.productId,
         sku: i.product.sku,
         productName: i.productName,
         trackingMode: i.product.trackingMode,
+        identifierType: i.product.identifierType,
+        identifiersPerUnit: i.product.identifiersPerUnit,
         quantityOrdered: i.quantityOrdered,
         quantityReceived: i.quantityReceived,
         unitCost: money(i.unitCost),

@@ -229,31 +229,47 @@ erDiagram
   CUSTOMER {
     uuid id PK
     string name
-    string phone
+    string phone UK "normalised; nullable"
+    string email
+    boolean is_active
+  }
+  TAX_SETTING {
+    uuid id PK
+    string name "VAT"
+    decimal rate_percent "0-100"
+    boolean is_active "one active row"
   }
   SALE {
     uuid id PK
-    string receipt_number UK
-    uuid customer_id FK
-    uuid cashier_id FK
+    string receipt_number UK "RCT-BRANCH-YYYY-NNNNNN"
     uuid branch_id FK
+    uuid cashier_id FK
+    uuid customer_id FK "nullable"
+    decimal subtotal
+    decimal tax_rate_percent "snapshot"
+    decimal tax_amount
     decimal total
-    string status
+    decimal amount_paid
+    decimal change_given
+    string idempotency_key UK
   }
   SALE_ITEM {
     uuid id PK
     uuid sale_id FK
     uuid product_id FK
-    uuid product_unit_id FK
-    decimal quantity
-    decimal unit_price
+    uuid product_unit_id FK "unique when set"
+    int quantity
+    decimal unit_price "snapshot"
+    decimal line_total
+    decimal cost_at_sale "WAC; hidden from cashiers"
   }
   PAYMENT {
     uuid id PK
     uuid sale_id FK
-    string method
+    enum method "CASH|CARD|MOBILE_MONEY|BANK_TRANSFER"
     decimal amount
-    string reference
+    decimal amount_tendered "cash"
+    string reference "required: mobile money, bank"
   }
   WARRANTY {
     uuid id PK

@@ -25,10 +25,11 @@ This is a logical model, not a final Prisma schema. Field types, nullability and
 | InventoryValuation *(Module 5)* | productId, averageCost (Decimal 18,4) | Moving weighted average, organisation-wide (I1); catalogue prices untouched (I2) |
 | StockBalance *(Module 5)* | productId, branchId (unique pair), onHand, reserved | `on_hand >= 0`, `0 <= reserved <= on_hand` (reserved stays 0 until POS, I17); whole units |
 | StockMovement *(Module 5)* | id, productId, branchId, movementType, quantityDelta, unitCost, valueDelta, productUnitId, referenceType, referenceId, actorId, createdAt | **Append-only** (trigger). Serialized: one row per unit (±1). Types: OPENING_BALANCE, PURCHASE_RECEIPT, ADJUSTMENT_INCREASE/DECREASE, TRANSFER_OUT/IN |
-| Customer | id, name, phone, email | Customer; collect minimum necessary data |
-| Sale | id, receiptNumber, customerId, branchId, cashierId, status, subtotal, discount, tax, total | Completed/voided sale; unique receipt |
-| SaleItem | id, saleId, productId, productUnitId, quantity, unitPrice, lineTotal | Sale lines; unit optional for quantity products |
-| Payment | id, saleId, method, amount, reference, status | Payment record; external processing not in MVP |
+| Customer *(Module 6)* | id, name, phone, email, notes, isActive, createdById | Optional on sales; organisation-wide; phone normalised (+255…) and unique when set; never deleted; minimal personal data |
+| TaxSetting *(Module 6)* | id, name, ratePercent, isActive, createdById, createdAt | One active row (partial unique); changes add a new row (history); audited |
+| Sale *(Module 6)* | id, receiptNumber, branchId, cashierId, customerId, status, currency, subtotal, discountTotal, taxRatePercent, taxAmount, total, amountPaid, changeGiven, idempotencyKey, requestHash, completedAt | `RCT-{BRANCH}-{YYYY}-{NNNNNN}`; append-only; total = subtotal − discount + tax; amountPaid = total; status COMPLETED in the MVP |
+| SaleItem *(Module 6)* | id, saleId, lineNumber, productId, sku, productName, productUnitId, quantity, unitPrice, lineTotal, costAtSale | Snapshots; lineTotal = qty × unitPrice; serialized lines qty 1 with a unit; a unit at most once across sales (partial unique); costAtSale = WAC, hidden from cashiers |
+| Payment *(Module 6)* | id, saleId, method, amount, amountTendered, reference | CASH/CARD/MOBILE_MONEY/BANK_TRANSFER; amount > 0; tendered ≥ amount (cash); reference required for MOBILE_MONEY and BANK_TRANSFER; Σ payments = sale total (deferred trigger); append-only |
 | WarrantyPolicy | id, productId/categoryId, durationDays, terms | Warranty rules; avoid ambiguous overlapping policies |
 | Warranty | id, saleId, productUnitId, customerId, startDate, endDate, status | Warranty instance linked to sale/unit |
 | WarrantyClaim | id, warrantyId, issue, status, resolution | Claim lifecycle |
