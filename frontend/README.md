@@ -1,10 +1,21 @@
 # ElectroCore EBMS — Frontend (MVP)
 
-React 19 + TypeScript on Vite. A single-page app for the interview demo:
-login, role-based navigation, dashboard, stock, receiving with IMEI/serial
-entry, POS (search, device selection, cart, server price preview, split
-payments, checkout), printable receipts, sales history, daily summary and
-VAT settings. **No runtime dependencies beyond React.**
+React 19 + TypeScript on Vite. One single-page app for every actor of the
+system; **no runtime dependencies beyond React.**
+
+| Role | Screens |
+|---|---|
+| System administrator | everything below, plus **Users** (create, role, branches, deactivate, reset password), **Branches**, **VAT settings** |
+| Manager | dashboard (orders awaiting approval), sales history, daily summary, customers (read), stock + valuation, products (**change prices**), purchase orders (**approve / reject / cancel approved**), suppliers (read), users (read), audit log |
+| Inventory officer | stock (balances, movements, devices), **receiving** with IMEI/serial entry, **products, categories, brands**, purchase orders and suppliers (read) |
+| Procurement officer | **suppliers**, **purchase orders** (create, edit draft, submit, reopen, cancel), stock, products (read), receiving* |
+| Cashier | **point of sale** (search, device picker/scan, cart, server quote, split payments, optional customer), receipts, sales history of their branch, **customers**, stock (quantities only), products (no costs) |
+| Technician | customers and products (read; repairs/warranty modules are not built yet) |
+| Auditor | read-only: sales, summary, customers, stock + valuation, products, purchase orders, suppliers, users, audit log |
+| Everyone | dashboard, **My account** (profile, change own password) |
+
+\* the backend still refuses receiving an order you created, submitted or approved (BR-14).
+Navigation only hides what a role cannot use; the backend enforces every rule.
 
 ## Run
 

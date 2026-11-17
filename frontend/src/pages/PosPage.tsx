@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import { ApiError } from '../api/client.ts'
-import type { CatalogueItem, PaymentInput, PaymentMethod, PosUnit, Quote, SaleDetail } from '../api/types.ts'
+import type { CatalogueItem, Customer, PaymentInput, PaymentMethod, PosUnit, Quote, SaleDetail } from '../api/types.ts'
 import { api } from '../app/api.ts'
 import { useSession } from '../app/session-context.ts'
 import { Alert, Empty, ErrorAlert, Money, PageHeader, Spinner } from '../components/ui.tsx'
 import { METHOD_LABELS, errorText } from '../lib/format.ts'
-import { useDebounced } from '../lib/hooks.ts'
+import { useApi, useDebounced } from '../lib/hooks.ts'
+import { hasPermission } from '../lib/permissions.ts'
+import { CustomerForm } from './CustomersPage.tsx'
 import { addQuantity, addUnit, removeLine, setQuantity, toRequestItems, type CartLine, type CartProduct } from '../lib/cart.ts'
 import { IdempotencyKeys } from '../lib/idempotency.ts'
 import { formatMoney, isMoney, paymentProgress } from '../lib/money.ts'
@@ -54,6 +56,7 @@ export function PosPage() {
   const [checkoutError, setCheckoutError] = useState<unknown>(null)
   const [submitting, setSubmitting] = useState(false)
   const [pendingRetry, setPendingRetry] = useState(false)
+  const [customer, setCustomer] = useState<Customer | null>(null)
 
   const branchParam = multiBranch ? branch?.id : undefined
 
@@ -170,6 +173,7 @@ export function PosPage() {
   const checkoutBody = useCallback(() => {
     return {
       branchId: branchParam,
+      customerId: customer?.id,
       items,
       payments: payments.map((p) => ({
         method: p.method,
@@ -178,7 +182,7 @@ export function PosPage() {
         ...(p.method !== 'CASH' && p.reference?.trim() ? { reference: p.reference.trim() } : {}),
       })),
     }
-  }, [branchParam, items, payments])
+  }, [branchParam, customer, items, payments])
 
   const submittingRef = useRef(false)
   async function checkout() {
@@ -194,6 +198,7 @@ export function PosPage() {
       setPendingRetry(false)
       setLines([])
       setPayments([newPayment()])
+      setCustomer(null)
       navigate(`/sales/${r.data.id}/receipt?new=1`)
     } catch (e) {
       if (uncertain(e)) {
@@ -354,6 +359,7 @@ export function PosPage() {
         {/* ------------------------------------------------ payment */}
         <section className="card pos-pay" aria-label="Payment">
           <h2>Payment</h2>
+          <CustomerPicker value={customer} onChange={setCustomer} disabled={locked} />
           {payments.map((p, i) => (
             <div key={p.rowId} className="pay-row" data-testid={`pay-row-${i}`}>
               <select
@@ -537,5 +543,78 @@ export function PosPage() {
         </div>
       )}
     </>
+  )
+}
+
+/** Optional customer for the sale (walk-in when none). Search by name or any part of the phone. */
+function CustomerPicker({ value, onChange, disabled }: { value: Customer | null; onChange: (c: Customer | null) => void; disabled: boolean }) {
+  const { user } = useSession()
+  const canRead = hasPermission(user, 'customers:read')
+  const canWrite = hasPermission(user, 'customers:write')
+  const [q, setQ] = useState('')
+  const [adding, setAdding] = useState(false)
+  const term = useDebounced(q.trim(), 250)
+  const found = useApi<Customer[]>(canRead && term.length >= 2 ? '/customers' : null, { q: term, isActive: true, limit: 5 })
+  if (!canRead) return null
+  if (value) {
+    return (
+      <div className="customer-chip" data-testid="pos-customer">
+        <span>
+          Customer: <strong>{value.name}</strong> {value.phone && <span className="muted small mono">{value.phone}</span>}
+        </span>
+        <button type="button" className="btn btn-ghost btn-small" disabled={disabled} onClick={() => onChange(null)} aria-label="Remove customer">
+          ✕
+        </button>
+      </div>
+    )
+  }
+  return (
+    <div className="customer-picker">
+      <div className="scan-row">
+        <input
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          placeholder="Customer (optional): name or phone"
+          aria-label="Find customer"
+          disabled={disabled}
+          data-testid="pos-customer-search"
+        />
+        {canWrite && (
+          <button type="button" className="btn" disabled={disabled} onClick={() => setAdding(true)} data-testid="pos-customer-new">
+            New
+          </button>
+        )}
+      </div>
+      {term.length >= 2 && found.data && (
+        <ul className="unit-list">
+          {found.data.length === 0 && <li className="muted small">No customer found — walk-in sale.</li>}
+          {found.data.map((c) => (
+            <li key={c.id}>
+              <button
+                type="button"
+                className="unit-item"
+                onClick={() => {
+                  onChange(c)
+                  setQ('')
+                }}
+                data-testid={`pos-customer-${c.id}`}
+              >
+                {c.name} {c.phone && <span className="muted small mono">{c.phone}</span>}
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+      {adding && (
+        <CustomerForm
+          onClose={() => setAdding(false)}
+          onSaved={(c) => {
+            setAdding(false)
+            onChange(c)
+            setQ('')
+          }}
+        />
+      )}
+    </div>
   )
 }

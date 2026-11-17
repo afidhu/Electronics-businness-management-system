@@ -10,6 +10,14 @@ import { ReceiptPage } from './pages/ReceiptPage.tsx'
 import { ReceiveOrderPage, ReceivingListPage } from './pages/ReceivingPage.tsx'
 import { SalesPage, SummaryPage } from './pages/SalesPage.tsx'
 import { VatSettingsPage } from './pages/VatSettingsPage.tsx'
+import { AccountPage } from './pages/AccountPage.tsx'
+import { AuditPage } from './pages/AuditPage.tsx'
+import { BranchesPage } from './pages/BranchesPage.tsx'
+import { CataloguePage } from './pages/CataloguePage.tsx'
+import { CustomersPage } from './pages/CustomersPage.tsx'
+import { PurchaseDetailPage, PurchaseFormPage, PurchasesPage } from './pages/PurchasesPage.tsx'
+import { SuppliersPage } from './pages/SuppliersPage.tsx'
+import { UsersPage } from './pages/UsersPage.tsx'
 import { canOpen } from './lib/permissions.ts'
 import { matchPath, navigate, useRoute, type Route } from './lib/router.ts'
 
@@ -27,6 +35,17 @@ function Page({ route }: { route: Route }) {
     return <ReceiptPage saleId={params.id} isNew={query.get('new') === '1'} key={params.id} />
   }
   if (path === '/settings/vat') return <VatSettingsPage />
+  if (path === '/account') return <AccountPage />
+  if (path === '/users') return <UsersPage />
+  if (path === '/branches') return <BranchesPage />
+  if (path === '/audit') return <AuditPage />
+  if (path === '/customers') return <CustomersPage />
+  if (path === '/catalogue') return <CataloguePage />
+  if (path === '/suppliers') return <SuppliersPage />
+  if (path === '/purchases') return <PurchasesPage />
+  if (path === '/purchases/new') return <PurchaseFormPage />
+  if ((params = matchPath('/purchases/:id/edit', path))) return <PurchaseFormPage purchaseId={params.id} key={`e-${params.id}`} />
+  if ((params = matchPath('/purchases/:id', path))) return <PurchaseDetailPage purchaseId={params.id} key={params.id} />
   return <Alert kind="info">Page not found. <a href="#/dashboard">Go to the dashboard</a>.</Alert>
 }
 

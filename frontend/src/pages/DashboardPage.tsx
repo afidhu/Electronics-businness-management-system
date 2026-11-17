@@ -11,6 +11,9 @@ interface Stats {
   todaySales?: number
   lowStock?: number
   toReceive?: number
+  toApprove?: number
+  drafts?: number
+  rejected?: number
 }
 
 export function DashboardPage() {
@@ -49,6 +52,23 @@ export function DashboardPage() {
       jobs.push(
         api.get<Purchase[]>('/purchases', { status: 'APPROVED', limit: 1, branchId }).then((r) => {
           next.toReceive = r.meta.pagination?.total ?? 0
+        }),
+      )
+    }
+    if (hasPermission(user, 'procurement:approve')) {
+      jobs.push(
+        api.get<Purchase[]>('/purchases', { awaitingMyApproval: true, limit: 1, branchId }).then((r) => {
+          next.toApprove = r.meta.pagination?.total ?? 0
+        }),
+      )
+    }
+    if (hasPermission(user, 'procurement:write')) {
+      jobs.push(
+        api.get<Purchase[]>('/purchases', { status: 'DRAFT', limit: 1, branchId }).then((r) => {
+          next.drafts = r.meta.pagination?.total ?? 0
+        }),
+        api.get<Purchase[]>('/purchases', { status: 'REJECTED', limit: 1, branchId }).then((r) => {
+          next.rejected = r.meta.pagination?.total ?? 0
         }),
       )
     }
@@ -104,6 +124,24 @@ export function DashboardPage() {
               <span className="stat-value">{stats.lowStock}</span>
             </a>
           )}
+          {stats.toApprove !== undefined && (
+            <a className="stat stat-link" href="#/purchases" data-testid="stat-to-approve">
+              <span className="stat-label">Orders awaiting my approval</span>
+              <span className="stat-value">{stats.toApprove}</span>
+            </a>
+          )}
+          {stats.drafts !== undefined && (
+            <a className="stat stat-link" href="#/purchases">
+              <span className="stat-label">Draft orders</span>
+              <span className="stat-value">{stats.drafts}</span>
+            </a>
+          )}
+          {stats.rejected !== undefined && (
+            <a className="stat stat-link" href="#/purchases">
+              <span className="stat-label">Rejected orders to revise</span>
+              <span className="stat-value">{stats.rejected}</span>
+            </a>
+          )}
           {stats.toReceive !== undefined && (
             <a className="stat stat-link" href="#/receiving">
               <span className="stat-label">Orders ready to receive</span>
@@ -117,6 +155,11 @@ export function DashboardPage() {
         {hasPermission(user, 'inventory:receive') && <a className="btn" href="#/receiving">Receive goods</a>}
         {hasPermission(user, 'sales:read') && <a className="btn" href="#/sales">Sales history</a>}
         {hasPermission(user, 'inventory:read') && <a className="btn" href="#/inventory">Stock</a>}
+        {hasPermission(user, 'procurement:write') && <a className="btn" href="#/purchases/new">New purchase order</a>}
+        {hasPermission(user, 'procurement:approve') && <a className="btn" href="#/purchases">Approve orders</a>}
+        {hasPermission(user, 'users:write') && <a className="btn" href="#/users">Manage users</a>}
+        {hasPermission(user, 'catalogue:read') && !hasPermission(user, 'inventory:read') && <a className="btn" href="#/catalogue">Products</a>}
+        {hasPermission(user, 'customers:read') && !hasPermission(user, 'sales:create') && <a className="btn" href="#/customers">Customers</a>}
       </div>
     </>
   )

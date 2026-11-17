@@ -249,3 +249,134 @@ export interface TaxCurrent {
   effectiveFrom?: string
   setBy?: { id: string; fullName: string } | null
 }
+
+export interface UserRecord {
+  id: string
+  email: string
+  fullName: string
+  isActive: boolean
+  isLocked: boolean
+  lastLoginAt: string | null
+  createdAt: string
+  role: { key: RoleKey; name: string }
+  branches: { id: string; code: string; name: string }[]
+}
+
+export interface RoleRecord {
+  id: string
+  key: RoleKey
+  name: string
+  description: string
+  maxBranches: number | null
+  permissions: string[]
+}
+
+export interface Named {
+  id: string
+  name: string
+  description?: string | null
+  isActive: boolean
+}
+
+export interface Product {
+  id: string
+  sku: string
+  name: string
+  description: string | null
+  category: { id: string; name: string }
+  brand: { id: string; name: string }
+  trackingMode: TrackingMode
+  identifierType: IdentifierType | null
+  identifiersPerUnit: number | null
+  costPrice?: string
+  sellingPrice: string
+  currency: string
+  reorderLevel: number
+  isActive: boolean
+}
+
+export interface Supplier {
+  id: string
+  name: string
+  contactPerson: string | null
+  phone: string | null
+  email: string | null
+  address: string | null
+  tin: string | null
+  notes: string | null
+  isActive: boolean
+}
+
+export interface Customer {
+  id: string
+  name: string
+  phone: string | null
+  email: string | null
+  notes: string | null
+  isActive: boolean
+}
+
+export interface PurchaseDetail extends Purchase {
+  currency: string
+  subtotal: string
+  supplierReference: string | null
+  expectedDeliveryDate: string | null
+  notes: string | null
+  items: (PurchaseItem & { unitCost?: string; lineTotal?: string })[]
+  createdBy: { id: string; fullName: string } | null
+  submittedBy: { id: string; fullName: string } | null
+  submittedAt: string | null
+  approvedBy: { id: string; fullName: string } | null
+  approvedAt: string | null
+  approvalNote: string | null
+  rejectedBy: { id: string; fullName: string } | null
+  rejectionReason?: string | null
+  cancelledBy?: { id: string; fullName: string } | null
+  cancellationReason?: string | null
+}
+
+export interface AuditEntry {
+  id: string
+  action: string
+  entityType: string
+  entityId: string | null
+  branchId: string | null
+  metadata: Record<string, unknown> | null
+  requestId: string | null
+  createdAt: string
+  actor: { id: string; email: string; fullName: string } | null
+}
+
+export interface Movement {
+  id: string
+  createdAt: string
+  movementType: string
+  productId: string
+  sku: string
+  branchId: string
+  branchCode: string
+  quantityDelta: number
+  unitCost?: string
+  valueDelta?: string
+  productUnitId: string | null
+  referenceType: string
+  referenceId: string
+  actor: { id: string; fullName: string } | null
+}
+
+export interface UnitRecord {
+  id: string
+  status: string
+  product: { id: string; sku: string; name: string }
+  branch: { id: string; code: string }
+  identifiers: Identifier[]
+  unitCost?: string
+  createdAt: string
+}
+
+export interface Valuation {
+  method: string
+  currency: string
+  lines: { branch: { id: string; code: string }; product: { id: string; sku: string }; onHand: number; averageCost: string; value: string }[]
+  totals: { onHandValue: string; inTransitValue: string; totalValue: string }
+}

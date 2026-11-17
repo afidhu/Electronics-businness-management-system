@@ -144,6 +144,16 @@ class Page {
       el.dispatchEvent(new Event(el instanceof HTMLSelectElement ? 'change' : 'input', { bubbles: true }));
     })()`)
   }
+  /** Choose the <option> whose text contains `text` (for selects keyed by ids). */
+  async selectByText(testId: string, text: string) {
+    await this.waitFor(`[...(${this.sel(testId)}?.options ?? [])].some((o) => o.text.includes(${JSON.stringify(text)}))`, `${testId} option ${text}`)
+    const value = await this.eval<string>(`[...${this.sel(testId)}.options].find((o) => o.text.includes(${JSON.stringify(text)})).value`)
+    await this.fill(testId, value)
+  }
+  async clickCheckbox(testId: string) {
+    await this.waitTestId(testId)
+    await this.eval(`${this.sel(testId)}.click()`)
+  }
   async submitForm(testId: string) {
     await this.eval(`${this.sel(testId)}.requestSubmit()`)
   }
@@ -226,6 +236,7 @@ async function main() {
     const page = new Page(cdp)
     await page.viewport(1440, 900)
     await run(page, cdp, fx)
+    await runRoles(page, fx)
     ws.close()
   } finally {
     chrome.kill('SIGTERM')
@@ -260,8 +271,8 @@ async function run(page: Page, cdp: Cdp, fx: Fixture) {
   step('Receiving with IMEI/serial entry (inventory officer)')
   await page.login(fx.users.inventory.email)
   check(
-    JSON.stringify(await page.navLabels()) === JSON.stringify(['Dashboard', 'Stock', 'Receiving']),
-    'inventory officer navigation: Dashboard, Stock, Receiving',
+    JSON.stringify(await page.navLabels()) === JSON.stringify(['Dashboard', 'Stock', 'Receiving', 'Products', 'Purchase orders', 'Suppliers', 'My account']),
+    'inventory officer navigation: stock, receiving, products, purchase orders, suppliers',
     JSON.stringify(await page.navLabels()),
   )
   await page.goto('#/receiving')
@@ -298,8 +309,8 @@ async function run(page: Page, cdp: Cdp, fx: Fixture) {
   step('Cashier session, token refresh and role navigation')
   await page.login(fx.users.cashier.email)
   check(
-    JSON.stringify(await page.navLabels()) === JSON.stringify(['Dashboard', 'Point of sale', 'Sales history', 'Stock']),
-    'cashier navigation: Dashboard, POS, Sales history, Stock',
+    JSON.stringify(await page.navLabels()) === JSON.stringify(['Dashboard', 'Point of sale', 'Sales history', 'Customers', 'Stock', 'Products', 'My account']),
+    'cashier navigation: POS, sales history, customers, stock, products',
     JSON.stringify(await page.navLabels()),
   )
   const storage = await page.eval<string>('JSON.stringify({ ...localStorage }) + JSON.stringify({ ...sessionStorage }) + document.cookie')
@@ -476,8 +487,9 @@ async function run(page: Page, cdp: Cdp, fx: Fixture) {
   step('Manager: dashboard and daily summary')
   await page.login(fx.users.manager.email)
   check(
-    JSON.stringify(await page.navLabels()) === JSON.stringify(['Dashboard', 'Sales history', 'Daily summary', 'Stock']),
-    'manager navigation: no POS, no receiving, no VAT settings',
+    JSON.stringify(await page.navLabels()) ===
+      JSON.stringify(['Dashboard', 'Sales history', 'Daily summary', 'Customers', 'Stock', 'Products', 'Purchase orders', 'Suppliers', 'Users', 'Audit log', 'My account']),
+    'manager navigation: no POS, no receiving, no branches or VAT settings',
     JSON.stringify(await page.navLabels()),
   )
   await page.waitTestId('stat-sales-count')
@@ -537,6 +549,254 @@ async function run(page: Page, cdp: Cdp, fx: Fixture) {
   check(!overflow, 'no horizontal page scroll at 390 px')
   await page.viewport(1440, 900)
   await page.logout()
+}
+
+// ------------------------------------------------------------------------
+// Every actor from scratch: the admin builds a branch and its staff in the UI.
+async function runRoles(page: Page, fx: Fixture) {
+  const run = fx.run
+  const code = `AA-${run}` // sorts first in branch pickers
+  const sku = `CHG-${run}`
+  const created: Record<string, { email: string; password: string }> = {}
+
+  step('Admin creates a branch and one user per role (UI)')
+  await page.login(ADMIN.email, ADMIN.password)
+  check(
+    JSON.stringify(await page.navLabels()) ===
+      JSON.stringify(['Dashboard', 'Point of sale', 'Sales history', 'Daily summary', 'Customers', 'Stock', 'Receiving', 'Products', 'Purchase orders', 'Suppliers', 'Users', 'Branches', 'VAT settings', 'Audit log', 'My account']),
+    'administrator sees every module',
+    JSON.stringify(await page.navLabels()),
+  )
+  await page.goto('#/branches')
+  await page.click('branch-new')
+  await page.fill('bf-code', code)
+  await page.fill('bf-name', `Arusha ${run}`)
+  await page.fill('bf-address', 'Sokoine Road, Arusha')
+  await page.fill('bf-phone', '+255272500100')
+  await page.click('bf-save')
+  check(await page.waitTestId('branch-notice'), `branch ${code} created`)
+  await page.screenshot('20-branches')
+
+  const roles: [string, string][] = [
+    ['MANAGER', 'manager'],
+    ['PROCUREMENT_OFFICER', 'procurement'],
+    ['INVENTORY_OFFICER', 'inventory'],
+    ['CASHIER', 'cashier'],
+    ['TECHNICIAN', 'technician'],
+    ['AUDITOR', 'auditor'],
+  ]
+  for (const [roleKey, name] of roles) {
+    const email = `ui.${name}.${run.toLowerCase()}@ebms.test`
+    await page.goto('#/users')
+    await page.click('user-new')
+    await page.waitTestId('user-form')
+    await page.fill('uf-name', `${name[0].toUpperCase()}${name.slice(1)} ${run}`)
+    await page.fill('uf-email', email)
+    await page.fill('uf-role', roleKey)
+    await page.clickCheckbox(`uf-branch-${code}`)
+    const password = await page.text('uf-password')
+    if (roleKey === 'CASHIER') await page.screenshot('21-new-user-form')
+    await page.click('uf-save')
+    await page.waitFor(`${page.sel('user-secret')}?.innerText.includes(${JSON.stringify(password)})`, `${roleKey} notice`)
+    check(password.length >= 12 && (await page.text('user-secret')).includes(password), `${roleKey} created; temporary password shown once`)
+    created[name] = { email, password }
+  }
+  await page.fill('user-search', `.${run.toLowerCase()}@`)
+  await sleep(600)
+  await page.screenshot('22-users')
+  await page.logout()
+
+  step('Each new user signs in and sees only their own work')
+  const expectedNav: Record<string, string[]> = {
+    manager: ['Dashboard', 'Sales history', 'Daily summary', 'Customers', 'Stock', 'Products', 'Purchase orders', 'Suppliers', 'Users', 'Audit log', 'My account'],
+    procurement: ['Dashboard', 'Stock', 'Receiving', 'Products', 'Purchase orders', 'Suppliers', 'My account'],
+    inventory: ['Dashboard', 'Stock', 'Receiving', 'Products', 'Purchase orders', 'Suppliers', 'My account'],
+    cashier: ['Dashboard', 'Point of sale', 'Sales history', 'Customers', 'Stock', 'Products', 'My account'],
+    technician: ['Dashboard', 'Customers', 'Products', 'My account'],
+    auditor: ['Dashboard', 'Sales history', 'Daily summary', 'Customers', 'Stock', 'Products', 'Purchase orders', 'Suppliers', 'Users', 'Audit log', 'My account'],
+  }
+  for (const [name, nav] of Object.entries(expectedNav)) {
+    await page.login(created[name].email, created[name].password)
+    const labels = await page.navLabels()
+    check(JSON.stringify(labels) === JSON.stringify(nav), `${name}: ${nav.slice(1, -1).join(', ')}`, JSON.stringify(labels))
+    await page.logout()
+  }
+
+  step('Cashier changes the temporary password (all sessions end)')
+  await page.login(created.cashier.email, created.cashier.password)
+  await page.goto('#/account')
+  await page.waitTestId('password-form')
+  const newPassword = `Cashier-${run}-Strong-1`
+  await page.fill('pw-current', 'not-the-password')
+  await page.fill('pw-new', newPassword)
+  await page.fill('pw-confirm', newPassword)
+  await page.click('pw-submit')
+  check(await page.waitTestId('pw-error'), 'a wrong current password is refused')
+  await page.fill('pw-current', created.cashier.password)
+  await page.click('pw-submit')
+  check(await page.waitTestId('pw-done'), 'password changed')
+  check(await page.waitTestId('login-form', 8000), 'signed out after the change')
+  await page.fill('login-email', created.cashier.email)
+  await page.fill('login-password', created.cashier.password)
+  await page.submitForm('login-form')
+  check(await page.waitTestId('login-error'), 'the old temporary password no longer works')
+  created.cashier.password = newPassword
+
+  step('Inventory officer: category, brand and product')
+  await page.login(created.inventory.email, created.inventory.password)
+  await page.goto('#/catalogue')
+  await page.click('tab-categories')
+  await page.click('category-new')
+  await page.fill('category-name', `Chargers ${run}`)
+  await page.click('category-save')
+  await sleep(500)
+  await page.click('tab-brands')
+  await page.click('brand-new')
+  await page.fill('brand-name', `Anker ${run}`)
+  await page.click('brand-save')
+  await sleep(500)
+  await page.click('tab-products')
+  await page.click('product-new')
+  await page.waitTestId('product-form')
+  await page.fill('pf-sku', sku)
+  await page.fill('pf-name', `65W USB-C Charger ${run}`)
+  await page.selectByText('pf-category', `Chargers ${run}`)
+  await page.selectByText('pf-brand', `Anker ${run}`)
+  await page.fill('pf-cost', '15000')
+  await page.fill('pf-price', '22000')
+  await page.click('pf-save')
+  check(await page.waitTestId('product-notice'), `product ${sku} created`)
+  await page.logout()
+
+  step('Procurement officer: supplier, purchase order, submit')
+  await page.login(created.procurement.email, created.procurement.password)
+  await page.goto('#/suppliers')
+  await page.click('supplier-new')
+  await page.fill('sf-name', `Kariakoo Wholesale ${run}`)
+  await page.click('sf-save')
+  await sleep(500)
+  await page.goto('#/purchases/new')
+  await page.waitTestId('po-form')
+  await page.selectByText('po-branch', code)
+  await page.selectByText('po-supplier', `Kariakoo Wholesale ${run}`)
+  await page.fill('po-product-search', sku)
+  await page.click(`po-add-${sku}`)
+  await page.fill('po-qty-0', '10')
+  check((await page.eval<string>(`${page.sel('po-cost-0')}.value`)) === '15000.00', 'unit cost prefilled from the product cost')
+  await page.screenshot('23-purchase-order-form')
+  await page.click('po-save')
+  await page.waitTestId('po-status')
+  check((await page.text('po-status')) === 'Draft', 'draft created')
+  const poId = (await page.eval<string>('location.hash')).split('/')[2]
+  const poRef = await page.eval<string>(`document.querySelector('h1').innerText`)
+  check(!(await page.exists('po-approve')), 'the creator has no approve button')
+  await page.click('po-submit')
+  await page.waitFor(`${page.sel('po-status')}?.innerText === 'Submitted'`, 'submitted')
+  check((await page.text('po-status')) === 'Submitted', `${poRef} submitted for approval`)
+  await page.logout()
+
+  step('Manager: approval queue and approve')
+  await page.login(created.manager.email, created.manager.password)
+  await page.waitTestId('stat-to-approve')
+  check((await page.text('stat-to-approve')).includes('1'), 'dashboard: 1 order awaiting my approval')
+  await page.goto('#/purchases')
+  await page.click(`po-open-${poRef}`)
+  await page.click('po-approve')
+  await page.fill('po-dialog-text', 'Approved for stock-up')
+  await page.click('po-dialog-confirm')
+  await page.waitFor(`${page.sel('po-status')}?.innerText === 'Approved'`, 'approved')
+  check((await page.text('po-status')) === 'Approved', 'order approved')
+  await page.screenshot('24-purchase-order-approved')
+  check(!(await page.exists('po-receive')), 'a manager cannot receive (no inventory:receive)')
+  await page.logout()
+
+  step('Inventory officer receives the approved order')
+  await page.login(created.inventory.email, created.inventory.password)
+  await page.goto(`#/purchases/${poId}`)
+  await page.click('po-receive')
+  await page.waitTestId('receive-form')
+  await page.submitForm('receive-form')
+  check(await page.waitTestId('receive-success'), '10 chargers received')
+  await page.goto('#/catalogue')
+  await page.fill('product-search', sku)
+  await page.click(`product-edit-${sku}`)
+  await page.waitTestId('product-form')
+  check(await page.eval<boolean>(`${page.sel('pf-price')}.disabled`), 'inventory officer cannot change the selling price')
+  await page.logout()
+
+  step('Manager changes the selling price (prices only)')
+  await page.login(created.manager.email, created.manager.password)
+  await page.goto('#/catalogue')
+  await page.fill('product-search', sku)
+  await page.click(`product-edit-${sku}`)
+  await page.waitTestId('product-form')
+  check(await page.eval<boolean>(`${page.sel('pf-name')}.disabled`), 'manager cannot change product details')
+  await page.fill('pf-price', '25000')
+  await page.click('pf-save')
+  check(await page.waitTestId('product-notice'), 'selling price changed to 25,000')
+  await page.logout()
+
+  step('Cashier sells to a new customer created at the till')
+  await page.login(created.cashier.email, created.cashier.password)
+  await page.goto('#/pos')
+  await page.fill('pos-search', sku)
+  await page.click(`pos-product-${sku}`)
+  await page.waitFor(`${page.sel('quote-total')}?.innerText.includes('29,500.00')`, 'new price + 18% VAT = 29,500.00')
+  await page.click('pos-customer-new')
+  await page.waitTestId('customer-form')
+  await page.fill('cf-name', `Neema ${run}`)
+  await page.fill('cf-phone', `07${String(Date.now()).slice(-8)}`)
+  await page.click('cf-save')
+  await page.waitTestId('pos-customer')
+  check((await page.text('pos-customer')).includes(`Neema ${run}`), 'customer attached to the sale')
+  await page.click('pay-fill-0')
+  await page.waitFor(`!${page.sel('checkout-submit')}.disabled`, 'checkout enabled')
+  await page.click('checkout-submit')
+  await page.waitTestId('receipt', 15_000)
+  check((await page.text('receipt')).includes(`Neema ${run}`), 'receipt shows the customer')
+  check((await page.text('receipt-number')).startsWith(`RCT-${code}-`), 'receipt numbered for the new branch')
+  await page.logout()
+
+  step('Auditor: read-only oversight')
+  await page.login(created.auditor.email, created.auditor.password)
+  await page.goto('#/audit')
+  await page.fill('audit-action', 'purchase.approved')
+  await page.waitTestId('audit-table')
+  check((await page.text('audit-table')).includes('purchase.approved'), 'audit log shows the approval')
+  await page.screenshot('25-audit-log')
+  await page.goto('#/users')
+  await page.waitTestId('users-table')
+  check(!(await page.exists('user-new')), 'auditor cannot create users')
+  await page.goto('#/inventory')
+  check(await page.waitTestId('tab-valuation'), 'auditor can open stock valuation')
+  await page.click('tab-valuation')
+  check(await page.waitTestId('valuation-total'), 'valuation total shown')
+  await page.goto('#/purchases/new')
+  check(await page.waitTestId('forbidden'), 'auditor cannot create purchase orders')
+  await page.logout()
+
+  step('Technician: lookup only, never costs')
+  await page.login(created.technician.email, created.technician.password)
+  await page.goto('#/catalogue')
+  await page.waitTestId('products-table')
+  check(!/cost/i.test(await page.text('products-table')), 'no cost column for the technician')
+  check(!(await page.exists('product-new')), 'technician cannot create products')
+  await page.logout()
+
+  step('Admin deactivates a user; that user can no longer sign in')
+  await page.login(ADMIN.email, ADMIN.password)
+  await page.goto('#/users')
+  await page.fill('user-search', created.technician.email)
+  await page.click(`user-edit-${created.technician.email}`)
+  await page.waitTestId('user-form')
+  await page.clickCheckbox('uf-active')
+  await page.click('uf-save')
+  await page.waitTestId('user-notice')
+  await page.logout()
+  await page.fill('login-email', created.technician.email)
+  await page.fill('login-password', created.technician.password)
+  await page.submitForm('login-form')
+  check(await page.waitTestId('login-error'), 'deactivated technician is refused at sign-in')
 }
 
 main().catch((e: unknown) => {

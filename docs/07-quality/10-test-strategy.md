@@ -246,3 +246,23 @@ Do not deploy a release if critical tests fail, migrations are unreviewed, produ
   - The purchase API did not return line ids, so no API client could call receiving. Fixed by exposing `id`, `identifierType` and `identifiersPerUnit` (commit `5d358a1`, with backend tests).
   - The browser run also confirmed that the CSRF origin check refuses cookie refresh and logout from an origin that is not configured; the test backend is started with the e2e origin allowed.
 
+## 10.14 Frontend: every actor (17 Nov 2026)
+- **New screens (frontend only; no backend change):**
+  - Users and Branches (administration);
+  - My account (change own password);
+  - Products, categories and brands, following the field-level price/cost rules;
+  - Suppliers;
+  - Purchase orders: create, edit draft, submit, approve/reject, reopen, cancel, receive link;
+  - Customers, and an optional customer at the POS;
+  - Audit log;
+  - Stock movements, devices and valuation.
+- **Unit/render (37):** navigation and route guards checked against each role's full permission set from `GET /roles`; temporary-password generator.
+- **Browser end-to-end: 94/94 checks**, the 53 earlier ones plus 41 new ones covering the full multi-role scenario (see `frontend/e2e/README.md`). Highlights:
+  - users created in the UI sign in with their temporary passwords;
+  - a password change revokes the old password;
+  - the purchase-order chain runs procurement → manager approval → inventory receiving;
+  - price edits are manager-only and detail edits are inventory-only;
+  - the auditor is read-only; the technician sees no costs;
+  - a deactivated user is refused at sign-in.
+- **Known limit:** branch pickers list the first 100 branches (the API's maximum page size).
+

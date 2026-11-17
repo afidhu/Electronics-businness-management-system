@@ -126,15 +126,15 @@ describe('idempotency keys for checkout retries', () => {
 })
 
 // ------------------------------------------------- navigation per role
-// Navigation-relevant permissions per role, as returned by GET /roles (seeded RBAC).
+// Full permission sets per role, exactly as returned by GET /roles (seeded RBAC).
 const ROLE_PERMS: Record<string, string[]> = {
-  SYSTEM_ADMIN: ['catalogue:cost_read', 'inventory:read', 'inventory:receive', 'reports:sales', 'sales:create', 'sales:read', 'settings:write'],
-  MANAGER: ['catalogue:cost_read', 'inventory:read', 'reports:sales', 'sales:read'],
-  CASHIER: ['inventory:read', 'sales:create', 'sales:read'],
-  INVENTORY_OFFICER: ['catalogue:cost_read', 'inventory:read', 'inventory:receive'],
-  PROCUREMENT_OFFICER: ['catalogue:cost_read', 'inventory:read', 'inventory:receive'],
-  AUDITOR: ['catalogue:cost_read', 'inventory:read', 'reports:sales', 'sales:read'],
-  TECHNICIAN: [],
+  AUDITOR: ["audit:read", "branches:read", "catalogue:cost_read", "catalogue:read", "customers:read", "inventory:read", "procurement:read", "repairs:read", "reports:inventory", "reports:sales", "roles:read", "sales:read", "users:read", "warranty:read"],
+  CASHIER: ["branches:read", "catalogue:read", "customers:read", "customers:write", "inventory:read", "sales:create", "sales:read", "warranty:read"],
+  INVENTORY_OFFICER: ["branches:read", "catalogue:cost_read", "catalogue:read", "catalogue:write", "inventory:adjust", "inventory:read", "inventory:receive", "inventory:transfer", "inventory:write", "procurement:read"],
+  MANAGER: ["audit:read", "branches:read", "catalogue:cost_read", "catalogue:price", "catalogue:read", "customers:read", "inventory:adjust", "inventory:read", "inventory:transfer", "procurement:approve", "procurement:read", "reports:inventory", "reports:sales", "roles:read", "sales:discount", "sales:read", "sales:return", "users:read", "warranty:read"],
+  PROCUREMENT_OFFICER: ["branches:read", "catalogue:cost_read", "catalogue:read", "inventory:read", "inventory:receive", "procurement:read", "procurement:write"],
+  SYSTEM_ADMIN: ["audit:read", "branches:access_all", "branches:read", "branches:write", "catalogue:cost_read", "catalogue:price", "catalogue:read", "catalogue:write", "customers:read", "customers:write", "inventory:adjust", "inventory:read", "inventory:receive", "inventory:transfer", "inventory:write", "procurement:approve", "procurement:read", "procurement:write", "repairs:read", "repairs:write", "reports:inventory", "reports:sales", "roles:read", "sales:create", "sales:discount", "sales:read", "sales:return", "settings:write", "users:read", "users:write", "warranty:read", "warranty:write"],
+  TECHNICIAN: ["branches:read", "catalogue:read", "customers:read", "repairs:read", "repairs:write", "warranty:read", "warranty:write"],
 }
 const userWith = (role: string): SessionUser => ({
   id: role,
@@ -150,13 +150,13 @@ describe('role-based navigation', () => {
   const labels = (role: string) => navFor(userWith(role)).map((i) => i.label)
 
   for (const [role, expected] of Object.entries({
-    SYSTEM_ADMIN: ['Dashboard', 'Point of sale', 'Sales history', 'Daily summary', 'Stock', 'Receiving', 'VAT settings'],
-    MANAGER: ['Dashboard', 'Sales history', 'Daily summary', 'Stock'],
-    CASHIER: ['Dashboard', 'Point of sale', 'Sales history', 'Stock'],
-    INVENTORY_OFFICER: ['Dashboard', 'Stock', 'Receiving'],
-    PROCUREMENT_OFFICER: ['Dashboard', 'Stock', 'Receiving'],
-    AUDITOR: ['Dashboard', 'Sales history', 'Daily summary', 'Stock'],
-    TECHNICIAN: ['Dashboard'],
+    SYSTEM_ADMIN: ["Dashboard", "Point of sale", "Sales history", "Daily summary", "Customers", "Stock", "Receiving", "Products", "Purchase orders", "Suppliers", "Users", "Branches", "VAT settings", "Audit log", "My account"],
+    MANAGER: ["Dashboard", "Sales history", "Daily summary", "Customers", "Stock", "Products", "Purchase orders", "Suppliers", "Users", "Audit log", "My account"],
+    CASHIER: ["Dashboard", "Point of sale", "Sales history", "Customers", "Stock", "Products", "My account"],
+    INVENTORY_OFFICER: ["Dashboard", "Stock", "Receiving", "Products", "Purchase orders", "Suppliers", "My account"],
+    PROCUREMENT_OFFICER: ["Dashboard", "Stock", "Receiving", "Products", "Purchase orders", "Suppliers", "My account"],
+    AUDITOR: ["Dashboard", "Sales history", "Daily summary", "Customers", "Stock", "Products", "Purchase orders", "Suppliers", "Users", "Audit log", "My account"],
+    TECHNICIAN: ["Dashboard", "Customers", "Products", "My account"],
   })) {
     it(`${role} sees: ${expected.join(', ')}`, () => {
       assert.deepEqual(labels(role), expected)
@@ -173,6 +173,18 @@ describe('role-based navigation', () => {
     assert.equal(canOpen(userWith('MANAGER'), '/pos'), false)
     assert.equal(canOpen(userWith('TECHNICIAN'), '/sales/abc/receipt'), false)
     assert.equal(canOpen(null, '/dashboard'), false)
+    // Administration and procurement deep links
+    assert.equal(canOpen(cashier, '/users'), false)
+    assert.equal(canOpen(cashier, '/purchases/x'), false)
+    assert.equal(canOpen(userWith('MANAGER'), '/users'), true, 'managers read staff of their branches')
+    assert.equal(canOpen(userWith('MANAGER'), '/branches'), false, 'only branches:write manages branches')
+    assert.equal(canOpen(userWith('MANAGER'), '/purchases/new'), false, 'approvers do not create orders')
+    assert.equal(canOpen(userWith('PROCUREMENT_OFFICER'), '/purchases/new'), true)
+    assert.equal(canOpen(userWith('TECHNICIAN'), '/catalogue'), true)
+    assert.equal(canOpen(userWith('TECHNICIAN'), '/pos'), false)
+    assert.equal(canOpen(userWith('AUDITOR'), '/audit'), true)
+    assert.equal(canOpen(userWith('INVENTORY_OFFICER'), '/audit'), false)
+    for (const role of Object.keys(ROLE_PERMS)) assert.equal(canOpen(userWith(role), '/account'), true, `${role} can change own password`)
   })
 })
 
@@ -185,5 +197,24 @@ describe('hash router', () => {
     assert.equal(parseHash('').path, '/')
     assert.deepEqual(matchPath('/sales/:id/receipt', r.path), { id: 'abc-1' })
     assert.equal(matchPath('/sales/:id/receipt', '/sales/abc'), null)
+  })
+})
+
+// ----------------------------------------------------- temporary passwords
+describe('generatePassword (new users and resets)', () => {
+  it('meets the policy (≥ 12 chars) with upper, lower, digit and symbol, and differs every time', async () => {
+    const { generatePassword } = await import('./hooks.ts')
+    const seen = new Set<string>()
+    for (let i = 0; i < 200; i++) {
+      const p = generatePassword()
+      assert.equal(p.length, 16)
+      assert.match(p, /[A-Z]/)
+      assert.match(p, /[a-z]/)
+      assert.match(p, /[0-9]/)
+      assert.match(p, /[!#%+=?@]/)
+      assert.doesNotMatch(p, /[O0Il1]/, 'no look-alike characters')
+      seen.add(p)
+    }
+    assert.equal(seen.size, 200)
   })
 })

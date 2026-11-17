@@ -60,3 +60,116 @@ export function Empty({ children }: { children: ReactNode }) {
   return <div className="empty">{children}</div>
 }
 
+export function Pager({
+  pagination,
+  page,
+  onPage,
+}: {
+  pagination: { page: number; totalPages: number; total: number } | null
+  page: number
+  onPage: (p: number) => void
+}) {
+  if (!pagination || pagination.totalPages <= 1) return null
+  return (
+    <div className="pager">
+      <button className="btn btn-small" disabled={page <= 1} onClick={() => onPage(page - 1)}>
+        Previous
+      </button>
+      <span className="muted">
+        Page {pagination.page} of {pagination.totalPages} · {pagination.total} records
+      </span>
+      <button className="btn btn-small" disabled={page >= pagination.totalPages} onClick={() => onPage(page + 1)}>
+        Next
+      </button>
+    </div>
+  )
+}
+
+export function Modal({
+  title,
+  onClose,
+  children,
+  testId,
+  wide = false,
+}: {
+  title: string
+  onClose: () => void
+  children: ReactNode
+  testId?: string
+  wide?: boolean
+}) {
+  return (
+    <div className="modal-backdrop" role="presentation" onClick={onClose}>
+      <div
+        className={`modal card${wide ? ' modal-wide' : ''}`}
+        role="dialog"
+        aria-modal="true"
+        aria-label={title}
+        onClick={(e) => e.stopPropagation()}
+        data-testid={testId}
+      >
+        <div className="modal-head">
+          <h2>{title}</h2>
+          <button type="button" className="btn btn-ghost btn-small" aria-label="Close" onClick={onClose}>
+            ✕
+          </button>
+        </div>
+        {children}
+      </div>
+    </div>
+  )
+}
+
+export function Tabs<T extends string>({
+  tabs,
+  value,
+  onChange,
+}: {
+  tabs: { key: T; label: string }[]
+  value: T
+  onChange: (k: T) => void
+}) {
+  return (
+    <div className="tabs" role="tablist">
+      {tabs.map((t) => (
+        <button
+          key={t.key}
+          type="button"
+          role="tab"
+          aria-selected={value === t.key}
+          className={value === t.key ? 'tab active' : 'tab'}
+          onClick={() => onChange(t.key)}
+          data-testid={`tab-${t.key}`}
+        >
+          {t.label}
+        </button>
+      ))}
+    </div>
+  )
+}
+
+/** Labelled input with server field errors (details[].field === name). */
+export function Field({
+  label,
+  children,
+  error,
+  hint,
+}: {
+  label: string
+  children: ReactNode
+  error?: string[]
+  hint?: string
+}) {
+  return (
+    <label className="field">
+      <span>{label}</span>
+      {children}
+      {hint && <small className="muted">{hint}</small>}
+      {error && error.length > 0 && <small className="field-error">{error.join('; ')}</small>}
+    </label>
+  )
+}
+
+export function StatusBadge({ active }: { active: boolean }) {
+  return active ? <span className="badge badge-ok">Active</span> : <span className="badge badge-warn">Inactive</span>
+}

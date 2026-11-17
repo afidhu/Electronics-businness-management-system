@@ -3,21 +3,25 @@ import type { Branch, SessionUser } from '../api/types.ts'
 import { navFor, ROLE_LABELS } from '../lib/permissions.ts'
 
 export function NavLinks({ user, current, onNavigate }: { user: SessionUser | null; current: string; onNavigate?: () => void }) {
+  const items = navFor(user)
   return (
     <nav aria-label="Main" className="nav">
-      {navFor(user).map((item) => {
+      {items.map((item, i) => {
         const active = current === item.path || current.startsWith(`${item.path}/`)
+        const showSection = item.section !== 'Overview' && items[i - 1]?.section !== item.section
         return (
-          <a
-            key={item.path}
-            href={`#${item.path}`}
-            className={active ? 'nav-link active' : 'nav-link'}
-            aria-current={active ? 'page' : undefined}
-            data-testid={`nav-${item.path.replace(/\//g, '-').replace(/^-/, '')}`}
-            onClick={onNavigate}
-          >
-            {item.label}
-          </a>
+          <div key={item.path}>
+            {showSection && <div className="nav-section">{item.section}</div>}
+            <a
+              href={`#${item.path}`}
+              className={active ? 'nav-link active' : 'nav-link'}
+              aria-current={active ? 'page' : undefined}
+              data-testid={`nav-${item.path.replace(/\//g, '-').replace(/^-/, '')}`}
+              onClick={onNavigate}
+            >
+              {item.label}
+            </a>
+          </div>
         )
       })}
     </nav>
@@ -98,10 +102,10 @@ export function Layout({
         </a>
         <div className="topbar-right">
           <BranchSelect branches={branches} branch={branch} onChange={onBranch} />
-          <div className="user-chip" data-testid="user-chip">
+          <a className="user-chip" href="#/account" data-testid="user-chip" title="My account">
             <span className="user-name">{user.fullName}</span>
             <span className="user-role">{ROLE_LABELS[user.role] ?? user.role}</span>
-          </div>
+          </a>
           <button type="button" className="btn btn-ghost" onClick={onLogout} data-testid="logout">
             Sign out
           </button>

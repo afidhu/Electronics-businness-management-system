@@ -10,6 +10,19 @@ cart → server quote → split payment (mobile money + cash with change) →
 checkout → receipt (screen and print media) → sales history → manager dashboard
 and daily summary → admin VAT settings → tablet/phone layouts.
 
+A second scenario starts from nothing:
+- the administrator creates a branch and one user for every role in the UI;
+- each user signs in and sees only their own menu;
+- the cashier changes the temporary password (the old one stops working);
+- the inventory officer creates a category, brand and product;
+- the procurement officer adds a supplier, then creates and submits a purchase order;
+- the manager approves it from the approval queue, and the inventory officer receives it;
+- the manager changes the price, which the inventory officer cannot;
+- the cashier sells to a customer created at the till;
+- the auditor reads the audit log and valuation;
+- the technician sees no costs;
+- a deactivated user is refused at sign-in.
+
 It also covers:
 - a wrong password;
 - reload restoring the session with exactly one refresh;
