@@ -95,6 +95,7 @@ describe('ApiClient — authentication', () => {
     assert.equal(refresh.init.method, 'POST')
   })
 
+  
   it('on 401 refreshes once and retries the request with the new token', async () => {
     const s = fakeServer()
     const api = new ApiClient('/api/v1', s.fetchFn)
