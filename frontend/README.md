@@ -39,6 +39,28 @@ production, Caddy serves the built files and proxies `/api` in the same way.
 | `npm test` | Unit + render tests (Vite SSR build → `node --test`) |
 | `npm run e2e` | Real-browser end-to-end test (see `e2e/README.md`) |
 
+## Social sharing previews (WhatsApp, Facebook, LinkedIn, Telegram, X)
+
+`index.html` carries the title, description, Open Graph and Twitter/X tags,
+theme colour and icons as **static HTML**, so link-preview crawlers (which do
+not run JavaScript) read them directly. The share image is
+`public/og-thumbnail.png` (1200 × 630 PNG, ~150 KB; regenerate with
+`npm run og:thumbnail` from `branding/`).
+
+Crawlers need **absolute https URLs**. Set the public origin when building for
+production (it is never guessed):
+
+```bash
+VITE_SITE_URL=https://<your-domain> npm run build
+```
+
+This adds `<link rel="canonical">`, `og:url`, and absolute `og:image` /
+`twitter:image` URLs. Without it the build still works (relative image, no
+canonical) and prints a warning. An `http://` value is rejected.
+
+The app uses hash routes (`/#/pos`), so every shared link is the same page
+for crawlers. No server-side rendering or prerendering is needed.
+
 ## Security and correctness rules
 
 - **Access token in memory only** (`src/api/client.ts`). Nothing is written

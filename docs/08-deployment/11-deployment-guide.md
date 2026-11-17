@@ -83,3 +83,15 @@ Never copy development secrets to production. Use strong unique secrets and rota
 - Roll back application image if health checks fail.
 - Do not assume a database migration is reversible. Use backward-compatible migrations where possible and prepare a tested restore/forward-fix plan.
 - Record incident and preserve logs.
+
+## Frontend build: public URL for social previews (added 17 Nov 2026)
+- Build the frontend with the confirmed public origin:
+  ```bash
+  VITE_SITE_URL=https://<confirmed-domain> npm run build
+  ```
+  This makes the canonical URL, `og:url`, `og:image` and `twitter:image` absolute, as WhatsApp, Facebook, LinkedIn, Telegram and X require. The value must be `https://`.
+- Caddy must serve `/`, `/og-thumbnail.png`, `/favicon.svg`, `/apple-touch-icon.png` and `/robots.txt` publicly, with no sign-in, redirect or IP restriction. The API stays under `/api`.
+- Set the backend `CORS_ORIGINS` to the same origin. The CSRF guard refuses session refresh and logout from any other origin.
+- After deploying, refresh the preview caches:
+  - **Facebook / WhatsApp:** Sharing Debugger → "Scrape Again";
+  - **LinkedIn:** Post Inspector.
