@@ -7,7 +7,7 @@ import { defineConfig, loadEnv, type HtmlTagDescriptor, type Plugin } from 'vite
  * scoped to /api/v1/auth, so the browser must see one origin.
  * VITE_API_PROXY overrides the target (e.g. the test backend on :3100).
  */
-const target = process.env.VITE_API_PROXY ?? 'https://electronics-businness-management-sy.vercel.app'
+const target = process.env.VITE_API_PROXY ?? 'https://electronics-businness-management-system-syhf-4e4oweewp.vercel.app'
 
 /**
  * Social-sharing metadata that needs the public origin (canonical URL,
