@@ -1,0 +1,435 @@
+@startuml ElectroCore_EBMS_ERD
+' ElectroCore EBMS — Entity Relationship Diagram (PostgreSQL)
+' GENERATED from backend/prisma/schema.prisma (all tables, columns and foreign keys).
+' Legend: * = NOT NULL   PK primary key   FK foreign key   UQ unique
+' Crow's foot: A ||--o{ B  each B row has exactly one A (FK NOT NULL); an A has zero or many B
+'              A |o--o{ B  the FK in B is nullable (B may have no A)
+'              A ||--o| B  one-to-zero-or-one (the FK in B is unique or is B's primary key)
+
+hide circle
+skinparam linetype ortho
+skinparam shadowing false
+skinparam roundcorner 6
+skinparam defaultFontName Arial
+skinparam defaultFontSize 11
+skinparam entity {
+  BorderColor #5d6878
+  ArrowColor #5d6878
+}
+skinparam ArrowColor #5d6878
+left to right direction
+
+title ElectroCore EBMS — Entity Relationship Diagram\n(27 tables · PostgreSQL · generated from the Prisma schema)
+
+package "Access & audit" #EAF1FF {
+  entity "roles" as roles {
+    *id : uuid  <<PK>>
+    --
+    *key : varchar(50)  <<UQ>>
+    *name : varchar(100)
+    description : varchar(500) NULL
+    max_branches : int NULL
+    *is_system : boolean
+    *created_at : timestamptz(3)
+    *updated_at : timestamptz(3)
+  }
+  entity "permissions" as permissions {
+    *id : uuid  <<PK>>
+    --
+    *key : varchar(100)  <<UQ>>
+    *description : varchar(500)
+  }
+  entity "role_permissions" as role_permissions {
+    *role_id : uuid  <<PK,FK>>
+    *permission_id : uuid  <<PK,FK>>
+    --
+  }
+  entity "branches" as branches {
+    *id : uuid  <<PK>>
+    --
+    *code : varchar(20)  <<UQ>>
+    *name : varchar(150)
+    address : varchar(300) NULL
+    phone : varchar(30) NULL
+    *is_active : boolean
+    *created_at : timestamptz(3)
+    *updated_at : timestamptz(3)
+  }
+  entity "users" as users {
+    *id : uuid  <<PK>>
+    --
+    *email : varchar(254)  <<UQ>>
+    *full_name : varchar(150)
+    *password_hash : varchar(255)
+    *role_id : uuid  <<FK>>
+    *is_active : boolean
+    *failed_login_attempts : int
+    locked_until : timestamptz(3) NULL
+    last_login_at : timestamptz(3) NULL
+    *password_changed_at : timestamptz(3)
+    *created_at : timestamptz(3)
+    *updated_at : timestamptz(3)
+  }
+  entity "user_branches" as user_branches {
+    *user_id : uuid  <<PK,FK>>
+    *branch_id : uuid  <<PK,FK>>
+    --
+    assigned_by_id : uuid NULL  <<FK>>
+    *assigned_at : timestamptz(3)
+  }
+  entity "refresh_tokens" as refresh_tokens {
+    *id : uuid  <<PK>>
+    --
+    *user_id : uuid  <<FK>>
+    *token_hash : char(64)  <<UQ>>
+    *family_id : uuid
+    *expires_at : timestamptz(3)
+    *session_expires_at : timestamptz(3)
+    *created_at : timestamptz(3)
+    revoked_at : timestamptz(3) NULL
+    revoked_reason : varchar(30) NULL
+    replaced_by_id : uuid NULL  <<FK,UQ>>
+  }
+  entity "audit_logs" as audit_logs {
+    *id : uuid  <<PK>>
+    --
+    actor_id : uuid NULL  <<FK>>
+    *action : varchar(100)
+    *entity_type : varchar(50)
+    entity_id : uuid NULL
+    branch_id : uuid NULL  <<FK>>
+    metadata : jsonb NULL
+    ip_address : varchar(45) NULL
+    request_id : varchar(64) NULL
+    *created_at : timestamptz(3)
+  }
+}
+
+package "Catalogue" #EAF7EE {
+  entity "categories" as categories {
+    *id : uuid  <<PK>>
+    --
+    *name : varchar(100)
+    *name_key : varchar(100)  <<UQ>>
+    description : varchar(500) NULL
+    *is_active : boolean
+    *created_at : timestamptz(3)
+    *updated_at : timestamptz(3)
+  }
+  entity "brands" as brands {
+    *id : uuid  <<PK>>
+    --
+    *name : varchar(100)
+    *name_key : varchar(100)  <<UQ>>
+    *is_active : boolean
+    *created_at : timestamptz(3)
+    *updated_at : timestamptz(3)
+  }
+  entity "products" as products {
+    *id : uuid  <<PK>>
+    --
+    *sku : varchar(40)  <<UQ>>
+    *name : varchar(200)
+    description : varchar(2000) NULL
+    *category_id : uuid  <<FK>>
+    *brand_id : uuid  <<FK>>
+    *tracking_mode : TrackingMode
+    identifier_type : IdentifierType NULL
+    identifiers_per_unit : int NULL
+    *cost_price : decimal(14, 2)
+    *selling_price : decimal(14, 2)
+    *reorder_level : int
+    *specifications : jsonb
+    *is_active : boolean
+    created_by_id : uuid NULL  <<FK>>
+    updated_by_id : uuid NULL  <<FK>>
+    *created_at : timestamptz(3)
+    *updated_at : timestamptz(3)
+  }
+}
+
+package "Procurement" #FFF6E5 {
+  entity "suppliers" as suppliers {
+    *id : uuid  <<PK>>
+    --
+    *name : varchar(150)
+    *name_key : varchar(150)  <<UQ>>
+    contact_person : varchar(150) NULL
+    phone : varchar(30) NULL
+    email : varchar(254) NULL
+    address : varchar(300) NULL
+    tin : varchar(9) NULL  <<UQ>>
+    notes : varchar(1000) NULL
+    *is_active : boolean
+    *created_at : timestamptz(3)
+    *updated_at : timestamptz(3)
+  }
+  entity "purchases" as purchases {
+    *id : uuid  <<PK>>
+    --
+    *reference : varchar(40)  <<UQ>>
+    *supplier_id : uuid  <<FK>>
+    *branch_id : uuid  <<FK>>
+    *status : PurchaseStatus
+    *currency : char(3)
+    *subtotal : decimal(14, 2)
+    supplier_reference : varchar(100) NULL
+    expected_delivery_date : date NULL
+    notes : varchar(1000) NULL
+    *created_by_id : uuid  <<FK>>
+    *created_at : timestamptz(3)
+    *updated_by_id : uuid  <<FK>>
+    *updated_at : timestamptz(3)
+    submitted_by_id : uuid NULL  <<FK>>
+    submitted_at : timestamptz(3) NULL
+    approved_by_id : uuid NULL  <<FK>>
+    approved_at : timestamptz(3) NULL
+    approval_note : varchar(500) NULL
+    rejected_by_id : uuid NULL  <<FK>>
+    rejected_at : timestamptz(3) NULL
+    rejection_reason : varchar(500) NULL
+    cancelled_by_id : uuid NULL  <<FK>>
+    cancelled_at : timestamptz(3) NULL
+    cancellation_reason : varchar(500) NULL
+  }
+  entity "purchase_items" as purchase_items {
+    *id : uuid  <<PK>>
+    --
+    *purchase_id : uuid  <<FK>>
+    *line_number : int
+    *product_id : uuid  <<FK>>
+    *product_name : varchar(200)
+    *quantity_ordered : int
+    *quantity_received : int
+    *unit_cost : decimal(14, 2)
+    *line_total : decimal(14, 2)
+    .. UNIQUE(purchase_id, product_id) ..
+    .. UNIQUE(purchase_id, line_number) ..
+  }
+  entity "document_sequences" as document_sequences {
+    *scope : varchar(100)  <<PK>>
+    --
+    *last_value : int
+    *updated_at : timestamptz(3)
+  }
+}
+
+package "Inventory" #F3ECFF {
+  entity "goods_receipts" as goods_receipts {
+    *id : uuid  <<PK>>
+    --
+    *reference : varchar(40)  <<UQ>>
+    *purchase_id : uuid  <<FK>>
+    *branch_id : uuid  <<FK>>
+    *received_by_id : uuid  <<FK>>
+    *received_at : timestamptz(3)
+    supplier_delivery_ref : varchar(100) NULL
+    supplier_invoice_ref : varchar(100) NULL
+    notes : varchar(1000) NULL
+    *idempotency_key : uuid  <<UQ>>
+    *request_hash : char(64)
+  }
+  entity "goods_receipt_items" as goods_receipt_items {
+    *id : uuid  <<PK>>
+    --
+    *goods_receipt_id : uuid  <<FK>>
+    *purchase_item_id : uuid  <<FK>>
+    *product_id : uuid  <<FK>>
+    *quantity : int
+    *unit_cost : decimal(14, 2)
+    .. UNIQUE(goods_receipt_id, purchase_item_id) ..
+  }
+  entity "product_units" as product_units {
+    *id : uuid  <<PK>>
+    --
+    *product_id : uuid  <<FK>>
+    *branch_id : uuid  <<FK>>
+    *status : UnitStatus
+    *unit_cost : decimal(14, 2)
+    goods_receipt_item_id : uuid NULL  <<FK>>
+    *created_at : timestamptz(3)
+    *updated_at : timestamptz(3)
+  }
+  entity "unit_identifiers" as unit_identifiers {
+    *id : uuid  <<PK>>
+    --
+    *product_unit_id : uuid  <<FK>>
+    *type : IdentifierType
+    *value : varchar(64)  <<UQ>>
+    *is_primary : boolean
+  }
+  entity "stock_balances" as stock_balances {
+    *product_id : uuid  <<PK,FK>>
+    *branch_id : uuid  <<PK,FK>>
+    --
+    *on_hand : int
+    *reserved : int
+    *updated_at : timestamptz(3)
+  }
+  entity "stock_movements" as stock_movements {
+    *id : uuid  <<PK>>
+    --
+    *product_id : uuid  <<FK>>
+    *branch_id : uuid  <<FK>>
+    *movement_type : MovementType
+    *quantity_delta : int
+    *unit_cost : decimal(14, 2)
+    *value_delta : decimal(16, 2)
+    product_unit_id : uuid NULL  <<FK>>
+    *reference_type : varchar(30)
+    *reference_id : uuid
+    *actor_id : uuid  <<FK>>
+    *created_at : timestamptz(3)
+  }
+  entity "inventory_valuations" as inventory_valuations {
+    *product_id : uuid  <<PK,FK>>
+    --
+    *average_cost : decimal(18, 4)
+    *updated_at : timestamptz(3)
+  }
+}
+
+package "Sales (POS)" #FDECEC {
+  entity "tax_settings" as tax_settings {
+    *id : uuid  <<PK>>
+    --
+    *name : varchar(30)
+    *rate_percent : decimal(5, 2)
+    *is_active : boolean
+    *created_by_id : uuid  <<FK>>
+    *created_at : timestamptz(3)
+  }
+  entity "customers" as customers {
+    *id : uuid  <<PK>>
+    --
+    *name : varchar(150)
+    phone : varchar(20) NULL  <<UQ>>
+    email : varchar(254) NULL
+    notes : varchar(500) NULL
+    *is_active : boolean
+    *created_by_id : uuid  <<FK>>
+    *created_at : timestamptz(3)
+    *updated_at : timestamptz(3)
+  }
+  entity "sales" as sales {
+    *id : uuid  <<PK>>
+    --
+    *receipt_number : varchar(40)  <<UQ>>
+    *branch_id : uuid  <<FK>>
+    *cashier_id : uuid  <<FK>>
+    customer_id : uuid NULL  <<FK>>
+    *status : SaleStatus
+    *currency : char(3)
+    *subtotal : decimal(14, 2)
+    *discount_total : decimal(14, 2)
+    *tax_rate_percent : decimal(5, 2)
+    *tax_amount : decimal(14, 2)
+    *total : decimal(14, 2)
+    *amount_paid : decimal(14, 2)
+    *change_given : decimal(14, 2)
+    *idempotency_key : uuid  <<UQ>>
+    *request_hash : char(64)
+    *completed_at : timestamptz(3)
+  }
+  entity "sale_items" as sale_items {
+    *id : uuid  <<PK>>
+    --
+    *sale_id : uuid  <<FK>>
+    *line_number : int
+    *product_id : uuid  <<FK>>
+    *sku : varchar(40)
+    *product_name : varchar(200)
+    product_unit_id : uuid NULL  <<FK,UQ>>
+    *quantity : int
+    *unit_price : decimal(14, 2)
+    *line_total : decimal(14, 2)
+    *cost_at_sale : decimal(18, 4)
+    .. UNIQUE(sale_id, line_number) ..
+  }
+  entity "payments" as payments {
+    *id : uuid  <<PK>>
+    --
+    *sale_id : uuid  <<FK>>
+    *method : PaymentMethod
+    *amount : decimal(14, 2)
+    amount_tendered : decimal(14, 2) NULL
+    reference : varchar(100) NULL
+    *created_at : timestamptz(3)
+  }
+}
+
+' ===== Relationships (parent ||--… child : foreign key) =====
+roles ||--o{ role_permissions : role_id
+permissions ||--o{ role_permissions : permission_id
+roles ||--o{ users : role_id
+users ||--o{ user_branches : user_id
+branches ||--o{ user_branches : branch_id
+users |o--o{ user_branches : assigned_by_id
+users ||--o{ refresh_tokens : user_id
+refresh_tokens |o--o| refresh_tokens : replaced_by_id
+users |o--o{ audit_logs : actor_id
+branches |o--o{ audit_logs : branch_id
+categories ||--o{ products : category_id
+brands ||--o{ products : brand_id
+users |o--o{ products : created_by_id
+users |o--o{ products : updated_by_id
+suppliers ||--o{ purchases : supplier_id
+branches ||--o{ purchases : branch_id
+users ||--o{ purchases : created_by_id
+users ||--o{ purchases : updated_by_id
+users |o--o{ purchases : submitted_by_id
+users |o--o{ purchases : approved_by_id
+users |o--o{ purchases : rejected_by_id
+users |o--o{ purchases : cancelled_by_id
+purchases ||--o{ purchase_items : purchase_id
+products ||--o{ purchase_items : product_id
+purchases ||--o{ goods_receipts : purchase_id
+branches ||--o{ goods_receipts : branch_id
+users ||--o{ goods_receipts : received_by_id
+goods_receipts ||--o{ goods_receipt_items : goods_receipt_id
+purchase_items ||--o{ goods_receipt_items : purchase_item_id
+products ||--o{ goods_receipt_items : product_id
+products ||--o{ product_units : product_id
+branches ||--o{ product_units : branch_id
+goods_receipt_items |o--o{ product_units : goods_receipt_item_id
+product_units ||--o{ unit_identifiers : product_unit_id
+products ||--o{ stock_balances : product_id
+branches ||--o{ stock_balances : branch_id
+products ||--o{ stock_movements : product_id
+branches ||--o{ stock_movements : branch_id
+product_units |o--o{ stock_movements : product_unit_id
+users ||--o{ stock_movements : actor_id
+products ||--o| inventory_valuations : product_id
+users ||--o{ tax_settings : created_by_id
+users ||--o{ customers : created_by_id
+branches ||--o{ sales : branch_id
+users ||--o{ sales : cashier_id
+customers |o--o{ sales : customer_id
+sales ||--o{ sale_items : sale_id
+products ||--o{ sale_items : product_id
+product_units |o--o| sale_items : product_unit_id
+sales ||--o{ payments : sale_id
+
+legend right
+  <b>Enumerations</b>
+  <b>TrackingMode</b>: SERIALIZED, QUANTITY
+  <b>IdentifierType</b>: IMEI, SERIAL
+  <b>PurchaseStatus</b>: DRAFT, SUBMITTED, APPROVED, REJECTED, PARTIALLY_RECEIVED, RECEIVED, CANCELLED
+  <b>MovementType</b>: OPENING_BALANCE, PURCHASE_RECEIPT, ADJUSTMENT_INCREASE, ADJUSTMENT_DECREASE, TRANSFER_OUT, TRANSFER_IN, SALE
+  <b>UnitStatus</b>: IN_STOCK, IN_TRANSIT, RESERVED, SOLD, RETURNED, UNDER_REPAIR, WRITTEN_OFF
+  <b>SaleStatus</b>: COMPLETED
+  <b>PaymentMethod</b>: CASH, CARD, MOBILE_MONEY, BANK_TRANSFER
+  
+  <b>Key database rules (enforced by PostgreSQL)</b>
+  • sales, sale_items, payments, stock_movements, goods_receipts(+items): append-only (UPDATE/DELETE refused by triggers)
+  • sale_items.product_unit_id UNIQUE: a device can be sold only once
+  • stock_balances: on_hand >= 0 and reserved <= on_hand (no overselling)
+  • stock_movements: value_delta = quantity_delta × unit_cost; serialized rows move ±1
+  • sales: total = subtotal − discount + tax; Σ payments = total (deferred trigger at COMMIT)
+  • payments: MOBILE_MONEY / BANK_TRANSFER require a reference; tendered >= amount (cash only)
+  • tax_settings: exactly one active row; history immutable
+  • goods_receipts: receiver ≠ creator/submitter/approver of the purchase order (BR-14)
+  • receipt RCT-{BRANCH}-{YYYY}-{NNNNNN}, PO-…, GRN-… numbered via document_sequences
+endlegend
+
+@enduml
